@@ -1,3 +1,17 @@
+---
+title: "Activity 2 - From Models to Forecasts"
+author: "NikBH"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, echo=FALSE, message=FALSE}
+library(tidyverse)
+# Set random seed for reproducibility
+set.seed(20260123)
+```
+
 # Exercise 2: From Models to Forecasts
 
 Note: This activity supplements material in Ecological Forecasting
@@ -47,6 +61,41 @@ plot(time,n,ylim=c(0,12),lwd=3,type='l',
 
 1.  [A] Generate plots of the logistic growth model at r = 1.95, 2.05,
     2.5, and 2.8 Describe the trajectory observed in each case.
+
+```{r}
+logistic_growth <- function(r, K, n0, NT) {
+  if (NT == 1) {
+    return(n0)
+  } else {
+    n1 <- n0 + r * n0 * (1 - n0 / K)
+    return(c(n0, logistic_growth(r, K, n1, NT - 1)))
+  }
+}
+
+lapply(c(1, 1.95, 2.05, 2.5, 2.8), \(r) {
+  tibble(
+    r = r,
+    n = logistic_growth(r, K, n0, NT),
+    t = 1:NT
+  )
+}) |>
+  do.call(rbind, args = _) |>
+  mutate(r = as_factor(r)) |>
+  ggplot(aes(t, n, color = r)) +
+  geom_line() +
+  theme_bw() +
+  ggtitle("Logistic Growth for different r") +
+  xlab("Time") +
+  ylab("Population Size")
+```
+
+| r | Description |
+|----------------------|--------------------------------------------------|
+| 1 | Population grows to K and stays there |
+| 1.95 | Population grows quickly past K, drops below K, and oscillates around K with diminishing amplitude. |
+| 2.05 | Population grows quickly past K, drops below K, and oscillates around K with steady amplitude. |
+| 2.5 | Population grows quickly past K, drops below K, then oscillates around K with amplitude that changes with period 5 |
+| 2.8 | Population grows quickly past K, drops below K, then oscillates around K with erratic amplitude |
 
 ## Probability distributions in R
 
@@ -99,7 +148,7 @@ distribution are:
 -   “r” = random: simulates random numbers
 
 The first argument to these functions is the same regardless of the
-distribution and is x for “d”, q for “p”, p for “q”and n for “r”
+distribution and is x for “d”, q for “p”, p for “q” and n for “r”
 
 All of this will make more sense once we consider a concrete example.
 Let's take a look at the normal probability density function first,
@@ -142,11 +191,11 @@ is a quantile, the x-values for the plot are restricted to the range
 p = seq(0,1,by=0.01)
 plot(p,qnorm(p,0,1),type='l',ylim=range(x))    # ylim sets the y-axis range
 # range returns the min/max as a 2-element vector
-abline(h=0)						# “h” for “horizontal”
+abline(h=0, lty = "dashed")						# “h” for “horizontal”
 lines(p,qnorm(p,2,1),col=2)
-abline(h=2,col=2)
+abline(h=2, lty = "dashed", col=2)
 lines(p,qnorm(p,-1,2),col=3)
-abline(h=-1,col=3)
+abline(h=-1, lty = "dashed", col=3)
 ```
 
 As you can see, the quantile function is the inverse of the CDF. This
@@ -193,6 +242,61 @@ randomly sample from than solve for analytically.
     distribution function, the quantile function, and a histogram of
     samples from that distribution.
 
+```{r chisq_density}
+df <- 1
+curve(dchisq(x, df), col = "blue",
+      from = 0, to = 10)
+text(0.8, 0.6, "df = 1", col = "blue")
+df <- 2
+curve(dchisq(x, df), col = "green", add = T)
+text(1.5, 0.35, "df = 2", col = "green")
+df <- 3
+curve(dchisq(x, df), col = "red", add = T)
+text(3, 0.25, "df = 3", col = "red")
+
+title(main = "Chi-Square Probability Density Function")
+```
+
+```{r chisq_cdf}
+df <- 1
+curve(pchisq(x, df), col = "blue",
+      from = 0, to = 10, xlab = "q", ylab = expression(pchisq(q, df)))
+text(0.8, 0.8, "df = 1", col = "blue")
+df <- 2
+curve(pchisq(x, df), col = "green", add = T)
+text(1, 0.54, "df = 2", col = "green")
+df <- 3
+curve(pchisq(x, df), col = "red", add = T)
+text(2, 0.3, "df = 3", col = "red")
+
+title(main = "Chi-Square Cumulative Density Function")
+```
+
+```{r chisq_quantile}
+df <- 3
+curve(qchisq(x, df), col = "red",
+      from = 0, to = 1, xlab = "p", ylab = expression(qchisq(p, df)))
+text(0.7, 4.5, "df = 3", col = "red")
+df <- 2
+curve(qchisq(x, df), col = "green", add = T)
+text(0.8, 2.5, "df = 2", col = "green")
+df <- 1
+curve(qchisq(x, df), col = "blue", add = T)
+text(0.9, 1.5, "df = 1", col = "blue")
+
+abline(v=c(0.025,0.975),lty=2)
+
+title(main = "Chi-Square Quantile Function")
+```
+
+```{r chisq_samples}
+for (n in c(10,100,1000,10000)) {
+  hist(rchisq(n, df = 3), xlab = "x", main = NULL, probability=TRUE, breaks=40)  
+  curve(dchisq(x, df = 3), col="red", add = T)
+  title(main = paste0("Chi-Square Random Sample, n=", n))
+}
+```
+
 ## Monte Carlo Simulation
 
 Most of the figures from the logistic growth example in Chapter 2
@@ -206,9 +310,9 @@ In Chapter 11 we will explore a variety of analytical and numerical
 approaches to propagating uncertainty, and the trade-offs among them, in
 much greater detail. Today I wanted to introduce a particularly common
 and general numerical approach, **Monte Carlo** simulation. A Monte
-Carlo method is any algorithm that relys on randomization to approximate
-a computation. These approaches and other will be discussed in more
-detail later (e.g. Chapters 5, 11, 13, & 14).
+Carlo method is any algorithm that relies on randomization to
+approximate a computation. These approaches and others will be discussed
+in more detail later (e.g. Chapters 5, 11, 13, & 14).
 
 The previous example of approximating the Normal distribution with a
 histogram of samples from the Normal distribution is a simple
@@ -297,13 +401,21 @@ point.
 n.stats = apply(n,2,quantile,c(0.025,0.5,0.975))
 ```
 
+> added in class
+
+```{r}
+plot(n.stats[3,], col=1, lwd=2, lty=3, type = "l")
+lines(n.stats[2,], col=2, lwd=2)
+lines(n.stats[1,], col=3, lwd=2, lty=3)
+```
+
 Unfortunately, R doesn't have a built in function for plotting shaded CI
 on time-series plots, so we'll define one. Unlike plot, which just takes
-x and y as arguements, this function need to take time-series for both
+x and y as arguements, this function needs to take time-series for both
 the upper (yhi) and lower (ylo) intervals.
 
 ```{r}
-ciEnvelope <- function(x,ylo,yhi,col="lightgrey",...){
+ciEnvelope <- function(x, ylo, yhi, col="lightgrey", ...) {
   polygon(cbind(c(x, rev(x), x[1]), c(ylo, rev(yhi),
   ylo[1])), border = NA,col=col,...) 
 }
@@ -314,14 +426,95 @@ ciEnvelope <- function(x,ylo,yhi,col="lightgrey",...){
 3.  [B] Plot histograms of the samples of r and K used for the
     simulation.
 
+```{r}
+hist(rE, probability=TRUE, breaks=40)
+curve(dnorm(x, mean(rE), sd(rE)), col = "red", lty = "dashed", add = T)
+```
+
+```{r}
+hist(KE, probability=TRUE, breaks=40)
+curve(
+  dnorm(x, mean(KE), sd(KE)),
+  col = "red",
+  lty = "dashed",
+  add = T
+)
+```
+
 4.  [A] Plot a sample of 10 different trajectories (through time) from
     your ensemble (on one graph).
 
+```{r}
+lapply(sample.int(length(rE), size = 10), \(s) {
+  tibble(
+    r = rE[s],
+    K = KE[s],
+    n = n[s, ],
+    t = 1:length(n)
+  )
+}) |>
+  do.call(rbind, args = _) |>
+  arrange(r, K) |>
+  mutate(params = paste0("r=", round(r, 3), ", K=", round(K, 3))) |>
+  ggplot(aes(t, n, color = params)) +
+  geom_line() +
+  theme_bw() +
+  ggtitle("Sampled trajectories from logistic growth ensemble") +
+  xlab("Time") +
+  ylab("Population Size")
+```
+
 5.  [B] Plot a histogram of your population forecast at time = 15.
 
+```{r}
+hist(
+  n[ , 15],
+  probability=TRUE,
+  breaks=40,
+  main = "Histogram of population forecasts at time=15",
+  xlab = "Population Size",
+  ylab = "Number of Ensemble Members"
+)
+curve(
+  dnorm(x, mean(n[, 15]), sd(n[, 15])),
+  col = "red",
+  lty = "dashed",
+  add = T
+)
+```
+
 6.  [A] Plot the median trajectory through time. Use `ciEnvelope` to add
-    a 95% CI (i.e. 2.5% to 97.5%) to the plot. This function need to
+    a 95% CI (i.e. 2.5% to 97.5%) to the plot. This function needs to
     take time-series for both the upper (yhi) and lower (ylo) intervals.
+
+```{r}
+# Using base R
+plot(
+  NA,
+  xlim = c(1, 30),
+  ylim = c(0, max(n.stats[3, ])),
+  main = "Median Ensemble Population with 95% CI",
+  ylab = "Population Size",
+  xlab = "Time"
+)
+ciEnvelope(1:30, n.stats[1, ], n.stats[3, ])
+lines(n.stats[2, ], col="blue")
+
+# Using tidyverse
+n.stats |>
+  t() |>
+  as.data.frame() |>
+  set_names("ci_lb", "median", "ci_ub") |>
+  mutate(t = 1:30) |>
+  ggplot(aes(t, median)) +
+  geom_ribbon(aes(ymin = ci_lb, ymax = ci_ub), fill = "lightgray") +
+  geom_line(color = "blue") +
+  geom_hline(yintercept = K, color = "black", linetype = "dashed") +
+  theme_bw() +
+  ggtitle("Median Ensemble Population with 95% CI") +
+  ylab("Population Size") +
+  xlab("Time")
+```
 
 ## Initial conditions
 
@@ -345,5 +538,50 @@ n0_ens = rlnorm(NE,log(n0),n0.sd)
     the sample of initial conditions to propagate initial condition
     uncertainty. Plot the median & 95% interval.
 
+```{r}
+r <- 1
+K <- 10
+lapply(n0_ens, \(n0) {
+  logistic_growth(r, K, n0, NT)
+}) |>
+  do.call(rbind, args = _) |>
+  apply(2, quantile, c(0.025, 0.5, 0.975)) |>
+  t() |>
+  as.data.frame() |>
+  set_names("ci_lb", "median", "ci_ub") |>
+  mutate(t = 1:30) |>
+  ggplot(aes(t, median)) +
+  geom_ribbon(aes(ymin = ci_lb, ymax = ci_ub), fill = "lightgray") +
+  geom_line(color = "blue") +
+  geom_hline(yintercept = K, color = "black", linetype = "dashed") +
+  theme_bw() +
+  ggtitle("Median Ensemble Population with 95% CI") +
+  ylab("Population Size") +
+  xlab("Time")
+```
+
 8.  [C] Repeat with r equal to 1.95, 2.05, and 2.8. Compare these
     simulations to those done in Question 1.
+
+```{r}
+for (r in c(1.95, 2.05, 2.8)) {
+  p <- lapply(n0_ens, \(n0) {
+    logistic_growth(r, K, n0, NT)
+  }) |>
+    do.call(rbind, args = _) |>
+    apply(2, quantile, c(0.025, 0.5, 0.975)) |>
+    t() |>
+    as.data.frame() |>
+    set_names("ci_lb", "median", "ci_ub") |>
+    mutate(t = 1:30) |>
+    ggplot(aes(t, median)) +
+    geom_ribbon(aes(ymin = ci_lb, ymax = ci_ub), fill = "lightgray") +
+    geom_line(color = "blue") +
+    geom_hline(yintercept = K, color = "black", linetype = "dashed") +
+    theme_bw() +
+    ggtitle(paste0("Median Ensemble Population, r=", r)) +
+    ylab("Population Size") +
+    xlab("Time")
+  print(p)
+}
+```
