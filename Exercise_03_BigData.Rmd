@@ -336,15 +336,16 @@ z, time, attributes).
 
 R support for parquet comes via the Apache `arrow` package. For example,
 if we want to connect to the Ecological Forecasting Initiative's catalog
-of ecological forecasts, which are stored in a Amazon-style S3 bucket (a
+of ecological forecasts, which are stored in an Amazon-style S3 bucket (a
 cloud native data store that itself abstracts away the concept of
 drives, folders, and file paths) we could do so using the syntax:
+
+### S3
 
 ```{r}
 if(file.exists("pheno.Rdata")){  
   load("pheno.Rdata")
 } else{  ## to make knit faster, only download the data the first time
-  
 s3 <- arrow::s3_bucket(bucket = "bio230014-bucket01/neon4cast-scores/parquet/phenology",
                         endpoint_override = "sdsc.osn.xsede.org",
                         anonymous=TRUE)
@@ -420,16 +421,47 @@ were {date} is the forecast start date. Make a timeseries plot of the
 ensemble member (there are 31 ensemble members total). Hint: make sure
 to filter all relevant variables before calling `collect`.
 
+```{r}
+if (file.exists("gefs.rds")) {
+  df <- read_rds("pheno.rds")
+} else {
+  bucket <- arrow::s3_bucket(
+    bucket = paste0(
+      "bio230014-bucket01/neon4cast-drivers/noaa/gefs-v12/stage2/reference_datetime=",
+      today() - 1
+    ),
+    endpoint_override = "sdsc.osn.xsede.org",
+    anonymous = TRUE
+  )
+
+  df <- arrow::open_dataset(bucket) |> 
+    filter(
+      variable=="air_temperature",
+      site_id == "HARV"
+    ) |>
+    collect()
+  
+  write_rds(df, file="pheno.Rdata", compress = "bz2")
+}
+
+df |>
+  mutate(parameter = as_factor(parameter)) |>
+  ggplot(aes(datetime, prediction, color = parameter)) +
+  geom_line() + theme_bw() + ggtitle("Predicted Temperature at HARV") +
+  xlab("Date") + ylab("Predicted Temperature (°K)") +
+  scale_color_discrete(name = "Ensemble\nMember")
+```
+
 ## EML Metadata
 
-Data is usually only as the valuable as the meta-data associated with
+Data is usually only as valuable as the meta-data associated with
 it. While some data is internally documented (e.g. netCDF) or highly
 standardized (e.g. MODIS), most data need to have external
 documentation.
 
 A particularly common metadata standard in ecology is the Ecological
 Metadata Language (EML). This is also the standard that the Ecological
-Forecasting Initative built upon when developing a community standard
+Forecasting Initiative built upon when developing a community standard
 for documenting forecasts outputs (yes, forecasts need metadata too!).
 In the example below we explore the structure and content of the
 metadata for a simple forecast.
@@ -483,6 +515,59 @@ were used, and did this forecast propagate the initial condition
 uncertainty for these species? For full credit, include code that
 answers these questions rather than just looking for the answers in the
 output.
+
+> Species Identities
+
+```{r}
+md |>
+  _$dataset |>
+  _$coverage |>
+  _$taxonomicCoverage |>
+  _$taxonomicClassification |>
+  lapply(\(x) {
+    tibble(
+      genus = x |>
+        _$taxonRankValue,
+      species = x |>
+        _$taxonomicClassification |>
+        _$taxonRankValue
+    )
+  }) |>
+  do.call(rbind, args = _) |>
+  knitr::kable()
+```
+
+> Species 1 is Gloeotrichia echinulata; species 2 is Anabaena circinalis.
+
+> Units Used
+
+```{r}
+md |>
+  _$dataset |>
+  _$dataTable |>
+  _$attributeList |>
+  get_attributes() |>
+  _$attributes |>
+  filter(unit != "dimensionless") |>
+  select(attributeName, unit)
+```
+
+> The depth attribute has units 'meter'; the two species attributes
+> have units 'number per meter squared'.
+
+> Did this forecast propagate the initial condition uncertainty for these species?
+
+```{r}
+md |>
+  _$additionalMetadata |>
+  _$metadata |>
+  _$forecast |>
+  _$drivers |>
+  _$status %in% c("propagates", "assimilates")
+```
+
+> No, this forecast did not propagate the initial condition uncertainty
+> for these species.
 
 ## cron
 
