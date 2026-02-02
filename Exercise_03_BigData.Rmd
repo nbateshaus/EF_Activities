@@ -87,6 +87,17 @@ phenology data (gcc_90), which EFI has preprocessed and saved here
 as part of the NEON forecasting challenge. Don't forget to filter this
 data by site and variable!
 
+```{r}
+phenology_data <- readr::read_csv("https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/phenology-targets.csv.gz")
+phenology_data |>
+  filter(site_id == "HARV" & variable == "gcc_90") |>
+  filter(!is.na(observation)) |>
+  ggplot(aes(datetime, observation)) +
+  geom_point(size = 0.25, color = "blue") +
+  theme_bw() +
+  ggtitle("gcc_90 at Harvard Forest") + xlab("Date") + ylab("gcc_90")
+```
+
 ## grep, system, RegExp
 
 ## GREP
@@ -201,6 +212,11 @@ gsub("HARV","BART",myCode[x])  ## substitute ALL: HARV for BART
 
 **Question 2: [B]** Within the object myCode, find all the lines that
 begin with the comment character, #.
+
+```{r}
+myCode |>
+  grepv("^#", x = _)
+```
 
 ## Using APIs
 
