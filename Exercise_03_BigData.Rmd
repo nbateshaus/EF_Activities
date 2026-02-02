@@ -241,7 +241,7 @@ MODISTools::mt_bands(product="MOD13Q1") ## vegetation indices
 
 Next, lets grab the data for a specific band (EVI) within a specific
 product (MOD13Q1). We'll focus on the NEON Harvard Forest (HARV)
-locationand look at one of the same years as we did with the phenology
+location and look at one of the same years as we did with the phenology
 data from question 1. The argument Size defines the dimensions of the
 box grabbed in terms of distance (in kilometers) outward from the
 center. Note that in practice we would also want to query the QAQC data
@@ -286,6 +286,26 @@ time = as.Date(names(EVI))
 
 **Question 3: [B]** Plot EVI versus time and compare to the NEON
 phenocam observations.
+
+```{r}
+evi_data <- tibble(
+  evi = EVI,
+  datetime = as_datetime(names(EVI))
+) |> 
+  pivot_longer(cols = "evi", names_to = "variable", values_to = "observation") |>
+  filter(!is.na(observation))
+
+phenology_data |>
+  filter(site_id == "HARV" & variable == "gcc_90") |>
+  filter(!is.na(observation)) |>
+  select(datetime, variable, observation) |>
+  union_all(evi_data) |>
+  filter(year(datetime) == 2021) |>
+  ggplot(aes(datetime, observation, color = variable)) +
+  geom_point() +
+  theme_bw() + ggtitle("EVI vs. gcc_90 at HARV") + xlab("Date") +
+  ylab("value")
+```
 
 FYI, APIs now exist for an enormous range of data sources that are
 available on the web, as well as a range of web-services that allow you
