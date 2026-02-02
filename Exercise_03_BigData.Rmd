@@ -1,9 +1,19 @@
-Exercise 3: Tools for big data
-========================================================
+# Exercise 3: Tools for big data
 
-The objective of today's exercise is to provide a quick introduction to some common tools for dealing with big data. For each tool we are just using the most basic syntax and you are encouraged to go back and read the help for each at a later date. This exercise also focuses on "general purpose" tools. There are a multitude of R libraries available for accessing specific data sources and web services. A quick summary of some of these is available at http://cran.r-project.org/web/views/WebTechnologies.html. In addition, a Google search on many of the tools and topics covered in Chapters 3 and 4 will provide a lot of additional info on big data tools outside of R.
+The objective of today's exercise is to provide a quick introduction to
+some common tools for dealing with big data. For each tool we are just
+using the most basic syntax and you are encouraged to go back and read
+the help for each at a later date. This exercise also focuses on
+"general purpose" tools. There are a multitude of R libraries available
+for accessing specific data sources and web services. A quick summary of
+some of these is available at
+<http://cran.r-project.org/web/views/WebTechnologies.html>. In addition,
+a Google search on many of the tools and topics covered in Chapters 3
+and 4 will provide a lot of additional info on big data tools outside of
+R.
 
-Note: The code in this exercise will download data off the web dynamically, which can take some time, so try to "knit" infrequently.
+Note: The code in this exercise will download data off the web
+dynamically, which can take some time, so try to "knit" infrequently.
 
 ```{r,echo=FALSE}
 ## since libraries will be pulled, make sure repository is set
@@ -33,11 +43,13 @@ get.pkg("tidyverse")
 #get.pkg("cronR")  ## optional, may not install easily on Windows
 ```
 
+## Pulling data directly off the web
 
-Pulling data directly off the web
----------------------------------
-
-In the previous exercises we loaded data into R using functions like read.csv. However, it is also possible to read data into R directly off the web by passing a web address to the file name. For smaller files that are quick to load this approach can ensure that the script is always operating with the most up-to-date version of a data file. 
+In the previous exercises we loaded data into R using functions like
+read.csv. However, it is also possible to read data into R directly off
+the web by passing a web address to the file name. For smaller files
+that are quick to load this approach can ensure that the script is
+always operating with the most up-to-date version of a data file.
 
 ```{r}
 gflu = readr::read_csv("https://raw.githubusercontent.com/EcoForecast/EF_Activities/master/data/gflu_data.txt",skip = 11)
@@ -45,11 +57,16 @@ time = as.Date(gflu$Date)
 plot(time,gflu$"Boston, MA",type='l')
 ```
 
-That said, for publication purposes it is usually important to save the data that you used for an analysis, and that the date of access is recorded (and version number if available), as some datasets are subject to frequent revision.
+That said, for publication purposes it is usually important to save the
+data that you used for an analysis, and that the date of access is
+recorded (and version number if available), as some datasets are subject
+to frequent revision.
 
-In this example, the file in question has an extensive header, which we skip during the load of the data, but as with any dataset, this metadata is important to read before using the data.
+In this example, the file in question has an extensive header, which we
+skip during the load of the data, but as with any dataset, this metadata
+is important to read before using the data.
 
-```
+```         
 Google Flu Trends - United States
 Copyright 2013 Google Inc.
 
@@ -64,20 +81,30 @@ For more information, please visit http://www.google.org/flutrends
 
 **Question 1: [A]**
 
-Make a simple time-series plot of the Harvard Forest (HARV) Phenocam phenology data (gcc_90), which EFI has preprocessed and saved here
-`url <- "https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/phenology-targets.csv.gz"` 
-as part of the NEON forecasting challenge. Don't forget to filter this data by site and variable!  
+Make a simple time-series plot of the Harvard Forest (HARV) Phenocam
+phenology data (gcc_90), which EFI has preprocessed and saved here
+`url <- "https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/phenology-targets.csv.gz"`
+as part of the NEON forecasting challenge. Don't forget to filter this
+data by site and variable!
 
-grep, system, RegExp
---------------------
+## grep, system, RegExp
 
 ## GREP
 
-`grep` is a handy little _command prompt_ function that returns lines from a file that match a search string. I continue to use this 'old school' utility on a daily basis to help manage code and data because this simple little search continues to be able to perform actions that elude newer search software:
+`grep` is a handy little *command prompt* function that returns lines
+from a file that match a search string. I continue to use this 'old
+school' utility on a daily basis to help manage code and data because
+this simple little search continues to be able to perform actions that
+elude newer search software:
 
-- `grep` looks within files, but is able to search across file and recursively within a directory structure. I use this constantly to follow variables or functions through complex code. For example, if I wanted to find uses of the term _phenology_ in my current directory and all subdirectories, I could type the following in my Terminal (not my R prompt)
+-   `grep` looks within files, but is able to search across file and
+    recursively within a directory structure. I use this constantly to
+    follow variables or functions through complex code. For example, if
+    I wanted to find uses of the term *phenology* in my current
+    directory and all subdirectories, I could type the following in my
+    Terminal (not my R prompt)
 
-```
+```         
 grep -ir "phenology" .
 
 ### Note: Some Windows users won't have grep installed but
@@ -86,38 +113,67 @@ grep -ir "phenology" .
 ### findstr is more limited and it is OK to skip examples that don't run
 ```
 
-here the -i means ignore case when searching, the -r means to search recursively through subdirectories, and the `.` means to start from the current directory. Used in this way grep can help you quickly find your way through new and complex code, iteratively hopping through the code from one search to another. It is also extremely helpful in debugging, when a program returns a cryptic error message and you want to find _where_ in the code that message was generated.
+here the -i means ignore case when searching, the -r means to search
+recursively through subdirectories, and the `.` means to start from the
+current directory. Used in this way grep can help you quickly find your
+way through new and complex code, iteratively hopping through the code
+from one search to another. It is also extremely helpful in debugging,
+when a program returns a cryptic error message and you want to find
+*where* in the code that message was generated.
 
-- `grep` returns the full lines/rows that match a search, allowing one to quickly and easily subset large datasets into smaller files and/or merge subsets across different files.
+-   `grep` returns the full lines/rows that match a search, allowing one
+    to quickly and easily subset large datasets into smaller files
+    and/or merge subsets across different files.
 
 ## RegExp
 
-- `grep` supports **Regular Expressions**, both within the search itself and in the set of filenames searched. For example, if we wanted to find all lines that contain 'phenology', in all the `.Rmd` files in the current directory we could type
+-   `grep` supports **Regular Expressions**, both within the search
+    itself and in the set of filenames searched. For example, if we
+    wanted to find all lines that contain 'phenology', in all the `.Rmd`
+    files in the current directory we could type
 
-```
+```         
 grep -ir 'phenology' *.Rmd
 ```
 
-where the * means 'match zero or more occurances of any character', in this case preceeding .Rmd (the zero part means this would match a file just named .Rmd). If I just wanted to find instances where `phenology` is at the start of the line I could use the `^` to indicate the beginning of the line
-```
+where the \* means 'match zero or more occurances of any character', in
+this case preceeding .Rmd (the zero part means this would match a file
+just named .Rmd). If I just wanted to find instances where `phenology`
+is at the start of the line I could use the `^` to indicate the
+beginning of the line
+
+```         
 grep -ir '^phenology' *.Rmd
 ```
 
-If I instead wanted to broaden my search to instances where `pheno` is followed immediately by another letter I could use [a-z] to match just letters in the English alphabet, which would pick up phenological and phenocam.
-```
+If I instead wanted to broaden my search to instances where `pheno` is
+followed immediately by another letter I could use [a-z] to match just
+letters in the English alphabet, which would pick up phenological and
+phenocam.
+
+```         
 grep -ir 'pheno[a-z]' *.Rmd
 ```
-or I could be more specific an just look for specific letters, e.g. pheno[cl] would match phenoc and phenol but not phenom. A full description of regular expressions is beyond the scope of this tutorial, and RegExp statements for matching complex patterns can quickly become cryptic, so following up on this further is left to the reader.
+
+or I could be more specific an just look for specific letters, e.g.
+pheno[cl] would match phenoc and phenol but not phenom. A full
+description of regular expressions is beyond the scope of this tutorial,
+and RegExp statements for matching complex patterns can quickly become
+cryptic, so following up on this further is left to the reader.
 
 ## system()
 
-There are often times when working in R that one needs to run another command, script, or piece of software that is external to R. If I'm working in an R script want the operating system to run a command I can do this with the `system` command
+There are often times when working in R that one needs to run another
+command, script, or piece of software that is external to R. If I'm
+working in an R script want the operating system to run a command I can
+do this with the `system` command
 
 ```{r}
 system('grep -ir "pheno" *.Rmd')
 ```
 
-Furthermore, often we want to capture the output of that command directly into R, which we can do using the `intern` flag:
+Furthermore, often we want to capture the output of that command
+directly into R, which we can do using the `intern` flag:
 
 ```{r}
 pheno.lines = system('grep -ir "pheno" *.Rmd',intern=TRUE)
@@ -126,7 +182,14 @@ pheno.lines[1:3]
 
 ## grep()
 
-Finally, it is also worth mentioning that R has its own, internal, version of grep that can be useful for searching and subsetting data and which also supports RegExp. Unlike the command-line version of grep, this function returns the row numbers matching the search string. In the example below we use the function readLines to read unstructured text in as vector of strings, one corresponding to each row in a file. It also demonstrates the function `sub`, which is related to grep but which substitutes the matching string rather than just finding it.
+Finally, it is also worth mentioning that R has its own, internal,
+version of grep that can be useful for searching and subsetting data and
+which also supports RegExp. Unlike the command-line version of grep,
+this function returns the row numbers matching the search string. In the
+example below we use the function readLines to read unstructured text in
+as vector of strings, one corresponding to each row in a file. It also
+demonstrates the function `sub`, which is related to grep but which
+substitutes the matching string rather than just finding it.
 
 ```{r}
 myCode = readLines("Exercise_03_BigData.Rmd")  ## read unstructured text
@@ -136,23 +199,38 @@ sub("HARV","BART",myCode[x])  ## substitute FIRST: HARV for BART
 gsub("HARV","BART",myCode[x])  ## substitute ALL: HARV for BART
 ```
 
+**Question 2: [B]** Within the object myCode, find all the lines that
+begin with the comment character, #.
 
-**Question 2: [B]** Within the object myCode, find all the lines that begin with the comment character, #.
+## Using APIs
 
-Using APIs
-----------
+In addition to data that are directly downloadable there are a number of
+places on the web where data are available though interactive,
+code-based webservices called Application Programming Interfaces (APIs).
+In this example we will access the NASA MODIS API, using a pre-existing
+R package called MODISTools, as a demonstration of one of the many
+dataset-specific R packages.
 
-In addition to data that are directly downloadable there are a number of places on the web where data are available though interactive, code-based webservices called Application Programming Interfaces (APIs). In this example we will access the NASA MODIS API, using a pre-existing R package called MODISTools, as a demonstration of one of the many dataset-specific R packages.  
-
-First, we'll query the MODIS server to see what data products are available and what variables (bands) are available within one of those data products. More details about each data product is available at https://modis.ornl.gov/sites/?id=us_massachusetts_harvard_forest_neon
-where we see that the tool has been expanded to also include data products for VIIRS, SMAP, DAYMET, GEDI, ECOSTRESS and SIF as well.
+First, we'll query the MODIS server to see what data products are
+available and what variables (bands) are available within one of those
+data products. More details about each data product is available at
+<https://modis.ornl.gov/sites/?id=us_massachusetts_harvard_forest_neon>
+where we see that the tool has been expanded to also include data
+products for VIIRS, SMAP, DAYMET, GEDI, ECOSTRESS and SIF as well.
 
 ```{r}
 MODISTools::mt_products()
 MODISTools::mt_bands(product="MOD13Q1") ## vegetation indices
 ```
 
-Next, lets grab the data for a specific band (EVI) within a specific product (MOD13Q1). We'll focus on the NEON Harvard Forest (HARV) locationand look at one of the same years as we did with the phenology data from question 1. The argument Size defines the dimensions of the box grabbed in terms of distance (in kilometers) outward from the center. Note that in practice we would also want to query the QAQC data for this variable, `250m_16_days_VI_Quality`, as well and use it to screen the data.
+Next, lets grab the data for a specific band (EVI) within a specific
+product (MOD13Q1). We'll focus on the NEON Harvard Forest (HARV)
+locationand look at one of the same years as we did with the phenology
+data from question 1. The argument Size defines the dimensions of the
+box grabbed in terms of distance (in kilometers) outward from the
+center. Note that in practice we would also want to query the QAQC data
+for this variable, `250m_16_days_VI_Quality`, as well and use it to
+screen the data.
 
 ```{r}
 EVI_file = "MODIS.HARV.RData"
@@ -174,12 +252,15 @@ if(file.exists(EVI_file)){
 head(subset)
 ```
 
-Here we extracted a 250m data products and looked +/ 1km in both directions, which gives us a 9x9 area and thus 81 pixels.
+Here we extracted a 250m data products and looked +/ 1km in both
+directions, which gives us a 9x9 area and thus 81 pixels.
+
 ```{r}
 unique(subset$pixel)
 ```
 
-For this example lets average over the spatial data and just generate a time-series of EVI. 
+For this example lets average over the spatial data and just generate a
+time-series of EVI.
 
 ```{r}
 ## average EVI spatially & use 'scale' to set units
@@ -187,18 +268,41 @@ EVI = tapply(subset$value*as.numeric(subset$scale), subset$calendar_date, mean,n
 time = as.Date(names(EVI))
 ```
 
-**Question 3: [B]** Plot EVI versus time and compare to the NEON phenocam observations.
+**Question 3: [B]** Plot EVI versus time and compare to the NEON
+phenocam observations.
 
-FYI, APIs now exist for an enormous range of data sources that are available on the web, as well as a range of web-services that allow you to not just download data but to also upload data or push requests various cloud platforms.
+FYI, APIs now exist for an enormous range of data sources that are
+available on the web, as well as a range of web-services that allow you
+to not just download data but to also upload data or push requests
+various cloud platforms.
 
-Cloud-Native data
------------------
+## Cloud-Native data
 
-One area of working with big data that has evolved rapidly since work began on the Ecological Forecasting book is the growth of cloud data storage and cloud-native file formats. Consistent with the ideas in the book there are RAM-limited and storage-limited problems, beyond which data do not fit in a single file or on a single computer, which necessitate _tiling_ data across multiple files that potentially live on multiple computers. Cloud-native data storage formats now make the generation and access of such tiled data seamless, such that a huge dataset that is spread across many individual files in the cloud might behave like a single dataframe. Standard operations (e.g. filtering) can then be done on such data without having to download individual files to your own computer, and with the remote files organized in a way that the system only has to touch the ones that actually contain the files of interest.
+One area of working with big data that has evolved rapidly since work
+began on the Ecological Forecasting book is the growth of cloud data
+storage and cloud-native file formats. Consistent with the ideas in the
+book there are RAM-limited and storage-limited problems, beyond which
+data do not fit in a single file or on a single computer, which
+necessitate *tiling* data across multiple files that potentially live on
+multiple computers. Cloud-native data storage formats now make the
+generation and access of such tiled data seamless, such that a huge
+dataset that is spread across many individual files in the cloud might
+behave like a single dataframe. Standard operations (e.g. filtering) can
+then be done on such data without having to download individual files to
+your own computer, and with the remote files organized in a way that the
+system only has to touch the ones that actually contain the files of
+interest.
 
-File formats that have increased in use in recent year include parquet for tabular data, cloud-native GeoTIFF for raster spatial data, and zarr for mixed-format and high-dimensional data (e.g. an array that is x, y, z, time, attributes). 
+File formats that have increased in use in recent year include parquet
+for tabular data, cloud-native GeoTIFF for raster spatial data, and zarr
+for mixed-format and high-dimensional data (e.g. an array that is x, y,
+z, time, attributes).
 
-R support for parquet comes via the Apache `arrow` package. For example, if we want to connect to the Ecological Forecasting Initiative's catalog of ecological forecasts, which are stored in a Amazon-style S3 bucket (a cloud native data store that itself abstracts away the concept of drives, folders, and file paths) we could do so using the syntax:
+R support for parquet comes via the Apache `arrow` package. For example,
+if we want to connect to the Ecological Forecasting Initiative's catalog
+of ecological forecasts, which are stored in a Amazon-style S3 bucket (a
+cloud native data store that itself abstracts away the concept of
+drives, folders, and file paths) we could do so using the syntax:
 
 ```{r}
 if(file.exists("pheno.Rdata")){  
@@ -226,11 +330,26 @@ range(df$reference_datetime)
 
 ```
 
-In the first part of the code, ds is just a connection to a cloud service, but it behaves like a dataframe (e.g., the line with just `ds` will display the list of variable names and variable types for the cloud-based dataframe). Next, we can use standard tidyverse syntax to process this file (e.g. filtering by model, variable, and location) and only when we call the command `collect()` does the processing actually execute in the cloud and send us the data we're requesting. For example, in the command above we request the phenology forecasts of the Phenocam greeness variable `gcc_90` from the `climatology` model for the NEON Harvard Forest site (HARV).
+In the first part of the code, ds is just a connection to a cloud
+service, but it behaves like a dataframe (e.g., the line with just `ds`
+will display the list of variable names and variable types for the
+cloud-based dataframe). Next, we can use standard tidyverse syntax to
+process this file (e.g. filtering by model, variable, and location) and
+only when we call the command `collect()` does the processing actually
+execute in the cloud and send us the data we're requesting. For example,
+in the command above we request the phenology forecasts of the Phenocam
+greeness variable `gcc_90` from the `climatology` model for the NEON
+Harvard Forest site (HARV).
 
-Data tiling is also a particularly useful feature for forecasting, as some such formats let you add new data without having to touch the previously written files. Thus one can append additional days of forecast inputs and outputs incrementally without having to load a large file into memory or rewrite it to storage. 
+Data tiling is also a particularly useful feature for forecasting, as
+some such formats let you add new data without having to touch the
+previously written files. Thus one can append additional days of
+forecast inputs and outputs incrementally without having to load a large
+file into memory or rewrite it to storage.
 
-For example, if we split the EFI phenology data into two sections, we can write each section out separately in parquet
+For example, if we split the EFI phenology data into two sections, we
+can write each section out separately in parquet
+
 ```{r}
 ## split data
 dfa <- df |> mutate(reference_datetime = lubridate::as_date(reference_datetime)) |>
@@ -243,22 +362,41 @@ dfa |> group_by(reference_datetime) |> arrow::write_dataset("parquetTest",format
 dfb |> group_by(reference_datetime) |> arrow::write_dataset("parquetTest",format="parquet")
 ```
 
-If you look in the folder you'll see that the files are organized by reference_datetime. We can now access these files as we did before, using `arrow::open_dataset` to open the whole _folder_. As before the resulting object behaves like a dataframe, even though it's actually pointing to a whole folder, and one can operate on this object without having to load all the individual files. 
+If you look in the folder you'll see that the files are organized by
+reference_datetime. We can now access these files as we did before,
+using `arrow::open_dataset` to open the whole *folder*. As before the
+resulting object behaves like a dataframe, even though it's actually
+pointing to a whole folder, and one can operate on this object without
+having to load all the individual files.
 
 ```{r}
 dfc = arrow::open_dataset("parquetTest")
 dfc
 ```
 
-**Question 4: [A]** Use arrow to access the NOAA GEFS weather forecast and filter this data to the forecast issued yesterday at midnight for the NEON site_id "HARV". The EFI NEON challenge stores this data at the endpoint "https://sdsc.osn.xsede.org" in a S3 bucket named "bio230014-bucket01/neon4cast-drivers/noaa/gefs-v12/stage2/reference_datetime={date}" were {date} is the forecast start date. Make a timeseries plot of the "air_temperature" data in this forecast that shows one curve for each ensemble member (there are 31 ensemble members total). Hint: make sure to filter all relevant variables before calling `collect`.
+**Question 4: [A]** Use arrow to access the NOAA GEFS weather forecast
+and filter this data to the forecast issued yesterday at midnight for
+the NEON site_id "HARV". The EFI NEON challenge stores this data at the
+endpoint "<https://sdsc.osn.xsede.org>" in a S3 bucket named
+"bio230014-bucket01/neon4cast-drivers/noaa/gefs-v12/stage2/reference_datetime={date}"
+were {date} is the forecast start date. Make a timeseries plot of the
+"air_temperature" data in this forecast that shows one curve for each
+ensemble member (there are 31 ensemble members total). Hint: make sure
+to filter all relevant variables before calling `collect`.
 
+## EML Metadata
 
-EML Metadata
-------------
+Data is usually only as the valuable as the meta-data associated with
+it. While some data is internally documented (e.g. netCDF) or highly
+standardized (e.g. MODIS), most data need to have external
+documentation.
 
-Data is usually only as the valuable as the meta-data associated with it. While some data is internally documented (e.g. netCDF) or highly standardized (e.g. MODIS), most data need to have external documentation.
-
-A particularly common metadata standard in ecology is the Ecological Metadata Language (EML). This is also the standard that the Ecological Forecasting Initative built upon when developing a community standard for documenting forecasts outputs (yes, forecasts need metadata too!). In the example below we explore the structure and content of the metadata for a simple forecast.
+A particularly common metadata standard in ecology is the Ecological
+Metadata Language (EML). This is also the standard that the Ecological
+Forecasting Initative built upon when developing a community standard
+for documenting forecasts outputs (yes, forecasts need metadata too!).
+In the example below we explore the structure and content of the
+metadata for a simple forecast.
 
 ```{r}
 ## load example metadata from the EFI standard github repo
@@ -266,66 +404,110 @@ md <- read_eml("https://raw.githubusercontent.com/eco4cast/EFIstandards/master/i
 ```
 
 We'll then use `eml_get` to extract basic information about the forecast
+
 ```{r}
 eml_get(md, "title")
 eml_get(md, "abstract")
 eml_get(md, "creator")
 ```
-Next, we can learn about the spatial, temporal, and taxonomic coverage of the forecast
+
+Next, we can learn about the spatial, temporal, and taxonomic coverage
+of the forecast
+
 ```{r}
 eml_get(md, "coverage")
 ```
+
 Next, let's look at the structure of the dataset itself
+
 ```{r}
 dt_md <- eml_get(md, "dataset")
 eml_get(dt_md, "physical")
 get_attributes(dt_md$dataTable$attributeList)
 ```
-The EFI standard also includes some additional Metadata fields related specifically to what uncertainties are included in a forecast
+
+The EFI standard also includes some additional Metadata fields related
+specifically to what uncertainties are included in a forecast
 
 ```{r}
 eml_get(md$additionalMetadata, "forecast")
 ```
-In the example above the `complexity` variables record the dimension of each uncertainty term (number of parameters, number of process error variances, etc.).
 
-More information about the EFI metadata standard can be found here https://github.com/eco4cast/EFIstandards and in Dietze et al 2023 Ecosphere https://dx.doi.org/10.1002/ecs2.4686
+In the example above the `complexity` variables record the dimension of
+each uncertainty term (number of parameters, number of process error
+variances, etc.).
 
-**Question 5 [A]**
-Based on the metadata above, what were the identities of the species_1 and species_2 columns in the forecast file, what units were used, and did this forecast propagate the initial condition uncertainty for these species? For full credit, include code that answers these questions rather than just looking for the answers in the output.
+More information about the EFI metadata standard can be found here
+<https://github.com/eco4cast/EFIstandards> and in Dietze et al 2023
+Ecosphere <https://dx.doi.org/10.1002/ecs2.4686>
 
-cron
-----
+**Question 5 [A]** Based on the metadata above, what were the identities
+of the species_1 and species_2 columns in the forecast file, what units
+were used, and did this forecast propagate the initial condition
+uncertainty for these species? For full credit, include code that
+answers these questions rather than just looking for the answers in the
+output.
 
-The last topic I wanted to touch on isn't data processing per se, but is handy for scheduling the automatic execution of tasks, and thus is frequently used in dynamic big data problems where new data are arriving on a regular basis and analyses need to be updated. An obvious example in the context of this course would be a forecast that would be updated on a daily or weekly basis. [note: like grep, cron is a *nix utility, so will run on linux, unix, and Mac OS, but not Windows].
+## cron
 
-cron jobs are specified in the cron table using the function `crontab` with takes the arguments -l to list the current contents or -e to edit the contents. The file contains a header component that allows us to specify information such as the shell used (SHELL=), path variables (PATH=), who to email job status updates (MAILTO=), and the directory to start from (HOME=), each on a separate line. Below the header is the table of the cron jobs themselves. A cron job consists of two components, the scheduling information and the command/script/program to be run. Lets take a look at a simple cron table
+The last topic I wanted to touch on isn't data processing per se, but is
+handy for scheduling the automatic execution of tasks, and thus is
+frequently used in dynamic big data problems where new data are arriving
+on a regular basis and analyses need to be updated. An obvious example
+in the context of this course would be a forecast that would be updated
+on a daily or weekly basis. [note: like grep, cron is a \*nix utility,
+so will run on linux, unix, and Mac OS, but not Windows].
 
-```
+cron jobs are specified in the cron table using the function `crontab`
+with takes the arguments -l to list the current contents or -e to edit
+the contents. The file contains a header component that allows us to
+specify information such as the shell used (SHELL=), path variables
+(PATH=), who to email job status updates (MAILTO=), and the directory to
+start from (HOME=), each on a separate line. Below the header is the
+table of the cron jobs themselves. A cron job consists of two
+components, the scheduling information and the command/script/program to
+be run. Lets take a look at a simple cron table
+
+```         
 MAILTO=dietze@bu.edu
 55 */2 * * * /home/scratch/dietze_lab/NOMADS/get_sref.sh
 ```
-The last part of this is the easiest to explain -- we're running a script called get_sref from the NOMADS folder. NOMADS is the NOAA met server and SREF is one of their weather forecast products, so it should come as no surprise that this script is grabbing the numerical weather forecast.  The first part of the script is more cryptic, but the five values given correspond to:
 
-```
+The last part of this is the easiest to explain -- we're running a
+script called get_sref from the NOMADS folder. NOMADS is the NOAA met
+server and SREF is one of their weather forecast products, so it should
+come as no surprise that this script is grabbing the numerical weather
+forecast. The first part of the script is more cryptic, but the five
+values given correspond to:
+
+```         
 minute  This controls what minute of the hour the command will run on,
-	 and is between '0' and '59'
-hour	This controls what hour the command will run on, and is specified in
+     and is between '0' and '59'
+hour    This controls what hour the command will run on, and is specified in
          the 24 hour clock, values must be between 0 and 23 (0 is midnight)
-dom	This is the Day of Month, that you want the command run on, e.g. to
-	 run a command on the 19th of each month, the dom would be 19.
-month	This is the month a specified command will run on, it may be specified
-	 numerically (0-12), or as the name of the month (e.g. May)
-dow	This is the Day of Week that you want a command to be run on, it can
-	 also be numeric (0-7) or as the name of the day (e.g. sun).
+dom This is the Day of Month, that you want the command run on, e.g. to
+     run a command on the 19th of each month, the dom would be 19.
+month   This is the month a specified command will run on, it may be specified
+     numerically (0-12), or as the name of the month (e.g. May)
+dow This is the Day of Week that you want a command to be run on, it can
+     also be numeric (0-7) or as the name of the day (e.g. sun).
 ```
-Values that are not specified explicitly are filled in with a *. Also, it is possible to specify lists (e.g. 0,6,12,18) or to specify a repeat frequency using a /. Thus the above example is set to run every other hour (/2) at 55 min past the hour.
 
-The `cronR` library in R provides an R-based interface to cron, including an intuitive GUI for configuring the automation of scripts
-```
+Values that are not specified explicitly are filled in with a \*. Also,
+it is possible to specify lists (e.g. 0,6,12,18) or to specify a repeat
+frequency using a /. Thus the above example is set to run every other
+hour (/2) at 55 min past the hour.
+
+The `cronR` library in R provides an R-based interface to cron,
+including an intuitive GUI for configuring the automation of scripts
+
+```         
 cronR::cron_rstudioaddin()
 ```
+
 as well as a set of command line tools
-```
+
+```         
 ## get the path to the helloworld.R script
 f <- system.file(package = "cronR", "extdata", "helloworld.R")
 
@@ -346,12 +528,16 @@ cron_ls()
 cron_rm("test2")
 ```
 
-
 **Question #6: [A]**
 
-Imagine you are working with MODIS data, but are grabbing a large region (rather than a single pixel) and want to ensure that the data you are using is alwaysd up to date. However, the total size of the database is large and you don't want to completely delete and reinstall the database every day when only a small percentage of the data changes in any update. 
+Imagine you are working with MODIS data, but are grabbing a large region
+(rather than a single pixel) and want to ensure that the data you are
+using is alwaysd up to date. However, the total size of the database is
+large and you don't want to completely delete and reinstall the database
+every day when only a small percentage of the data changes in any
+update.
 
-* Write out the pseudocode/outline for how to keep the files up to date
-* Write out what the cron table would look like to schedule this job (assume the update only needs to be done weekly)
-
-
+-   Write out the pseudocode/outline for how to keep the files up to
+    date
+-   Write out what the cron table would look like to schedule this job
+    (assume the update only needs to be done weekly)
