@@ -340,8 +340,6 @@ of ecological forecasts, which are stored in an Amazon-style S3 bucket (a
 cloud native data store that itself abstracts away the concept of
 drives, folders, and file paths) we could do so using the syntax:
 
-### S3
-
 ```{r}
 if(file.exists("pheno.Rdata")){  
   load("pheno.Rdata")
@@ -653,12 +651,93 @@ cron_rm("test2")
 
 Imagine you are working with MODIS data, but are grabbing a large region
 (rather than a single pixel) and want to ensure that the data you are
-using is alwaysd up to date. However, the total size of the database is
+using is always up to date. However, the total size of the database is
 large and you don't want to completely delete and reinstall the database
 every day when only a small percentage of the data changes in any
 update.
 
 -   Write out the pseudocode/outline for how to keep the files up to
     date
+
+> Let's define a worker process to append a week of MODIS data
+> to a Parquet dataset.
+>
+> The general strategy is to fetch and assemble the dataset in
+> a side location, then move it into place.
+>
+> Here's pseudocode for the worker:
+>
+> Step 2: Create a marker file for the date; in this file place the
+> host and process that are doing the fetch. In the event of failure
+> we can use this to figure out what went wrong. It is also used
+> in step 1 to prevent fetching the same thing multiple times. It's
+> confusing to use something before defining it, so I list step 2
+> before step 1.
+>
+> Step 1: Check to see if the partition (directory) already exists
+> in the datset. If so, exit; the data's already there. If not,
+> check for an existing marker file for the date. If there is one,
+> and it is not old, or it is old but the process identified in the
+> file is still running, quit: there's already a process to download
+> this data. Otherwise, continue to Step 2, above.
+> 
+> Step 3: Use MODIStools to fetch the data for this time slice, format it
+> as Parquet, and add it to the dataset. To be transactional,
+> the data should be prepared in a location outside the Parquet
+> directory, then renamed to be part of the Parquet dataset
+> (rename is typically an atomic action in the filesystem, so
+> it wont' corrupt your dataset if the process fails midway through).
+>
+> Step 4: DO NOT remove the marker file for the date. It's your record
+> that this work was done.
+>
+> Because each run of the worker fetches a separate slice of data,
+> many workers can be run at once to catch up if necessary. Also,
+> because of the marker files, re-running a worker for a date will
+> quickly recognize that the work has already been done, and quit.
+> This idempotency makes re-running failed jobs super easy.
+>
+    
 -   Write out what the cron table would look like to schedule this job
     (assume the update only needs to be done weekly)
+
+> Now that we have a worker process, we need something to run it.
+> That's cron. Cron in and of itself is uneliable - for example, 
+> geo.bu.edu will be down on Sunday, February 8 for maintenance.
+> If your job is scheduled to start in this timeframe, it just won't,
+> and it's up to you to notice that it didn't run.
+> 
+> Because we've made our worker idempotent, we can run it as often
+> as we want, and at the cost of a trivial amount of compute, it will
+> determine that it doesn't need to run and exit.
+> 
+> Next we determine two aspects of our data availability contract:
+>
+> 1. How long after cron comes back online are we willing to wait
+>    before fetching the latest data? We may be willng to wait a day,
+>    or an hour, or only 5 minutes. One minute is probably excessive,
+>    since it's going to take longer than that to fetch the data.
+>
+> 2. How long an extended period of cron being unavailable do we want
+>    to catch up from automatically, without human intervention? If it's
+>    a week or less, we just run the job to fetch this week. If it's
+>    anything longer, we run the jobs to fetch all the weeks in the
+>    automatic catch-up interval. Any jobs that aren't needed will
+>    see that they're not needed and exit without doing anything.
+>
+> If we are relaxed about data availability, we can just run weekly,
+> and let a human intervene if something goes wrong. We do want to be
+> a little friendly to the system, though: when people use cron a lot,
+> they tend to all say "start this at midnight on the first day of the
+> week" and all the jobs run at once and the system gets overloaded.
+> Cron supports "a~b" syntax, where the tilde says cron can choose any
+> value in the range to distribute load.
+> 
+> OK, Now we have all the parts, here's the crontab:
+
+```
+0~59 8 * * 0 /project/qee/scripts/fetch_modis_weekly.sh
+```
+> This will run on the first day of the week, all months, all days-of-week,
+> hour 8 (chosen arbitrarily), at a random minute from 0-59, the command
+> fetch_modis_weekly.sh
