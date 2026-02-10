@@ -348,6 +348,7 @@ R support for parquet comes via the Apache `arrow` package. For example,
 if we want to connect to the Ecological Forecasting Initiative's catalog
 of ecological forecasts, which are stored in an Amazon-style S3 bucket
 (a cloud native data store that itself abstracts away the concept of
+
 drives, folders, and file paths) we could do so using the syntax:
 
 ```{r}
