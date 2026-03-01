@@ -814,8 +814,7 @@ plot(jags.out)
 ```
 
 > Which is great, but it's really hard to see anything. Let's look at a
-> couple of windows. The plot itself seems to run window(start = 5000),
-> so we can only look after that.
+> couple of windows.
 
 ```{r}
 plot(window(jags.out, end = 1000))
@@ -993,13 +992,16 @@ dimension of your prior and initial conditions on $b$ from 2 to 4.
 
 ## Task 2
 
-### Code
+### 2.A. Code
 
 -   Show the JAGS and R code used. [A]
 
-> Load the data, set up priors, and run the model.
+> Load the data, set up priors, and create the model.
 
 ```{r}
+# Reset the RNG
+set.seed(20260301)
+
 loaded_objects <- load("data/Ex05.Part2.RData", verbose = TRUE)
 multivariate_regression <- "
 model {
@@ -1012,9 +1014,159 @@ model {
   }
 }
 "
+mv.data <- list(
+  x1 = x1,
+  x2 = x2,
+  y = y,
+  n = length(y),
+  b0 = as.vector(rep(0, 4)), # b is length 4, so b0 needs to be length 4
+  Vb = solve(diag(10000,4)),
+  s1 = 0.1,
+  s2 = 0.1
+)
+nchain = 3
+mv.inits <- lapply(1:nchain, \(x) {
+  # x is ignored
+  list(
+    b = rnorm(4, 0, 5),
+    S = runif(1, 1/200, 1/20)
+  )
+})
+
+# Create the JAGS model
+mv.model <- jags.model(
+  file = textConnection(multivariate_regression),
+  data = mv.data,
+  inits = mv.inits,
+  n.chains = nchain
+)
 ```
 
+> It's like Haskell: if it compiles, it's 99% likely to be correct.
+>
+> Run it.
+
+```{r}
+mv.out <- coda.samples(
+  model = mv.model,
+  variable.names = c("b", "S"),
+  n.iter = 10000
+)
+```
+
+### 2.B. Convergence
+
 -   Include relevant convergence diagnostics and plots. [A]
+
+> We have output in mv.out; let's take a look at it overall.
+
+```{r}
+plot(mv.out)
+```
+
+> Which is great, but it's really hard to see anything. Let's look at a
+> couple of windows.
+
+```{r}
+plot(window(mv.out, end = 1000))
+plot(window(mv.out, start = 2000, end = 3000))
+plot(window(mv.out, start = 4000, end = 5000))
+```
+
+> Looks like I didn't need 10000 iterations; the peaks of all three density
+> plots remain consistent from 1000 to 5000. I'm
+> inclined to say "yes, converged" based on this.
+
+> Next up: Brooks-Gelman-rubin stats.
+
+```{r}
+gelman.diag(mv.out)
+```
+
+> For the whole plot, this looks good (\<1.05). What if we look just at
+> the start?
+
+```{r}
+gelman.diag(window(mv.out, end = 1000))
+```
+
+> So most of b[i] are 1.01 in the first 1000; seems like burn-in
+> happened in there somewhere.
+
+> Let's zoom in to the first 1000 and get the BGR plot
+
+```{r}
+gelman.plot(window(mv.out, end = 1000))
+```
+
+> Maybe there's a way to configure the lot to not squish the vertical
+> axis, but I haven't found it. In any case, like Task 1, it looks
+> like convergence happens by iteration 250 or so.
+
+```{r}
+burnin = 250
+mv.burn = window(mv.out, start = burnin)
+```
+
+### 2.C. Parameter Summary
+
 -   Report parameter summary table. [A]
+
+```{r}
+mv.summary <- summary(mv.burn)
+mv.summary
+```
+
+> Parameter S (data precision): Mean 0.07, SE 3.8e-05
+>
+> S 95% CI: 0.06 to 0.08
+>
+> Parameter b[1] (intercept): Mean 10.9, SE 5.9e-03
+>
+> b[1] 95% CI: 8.9 to 12.9
+>
+> Parameter b[2] (slope w.r.t. x1): Mean 1.9, SE 5.3e-04
+>
+> b[2] 95% CI: 1.7 to 2
+>
+> Parameter b[3] (slope w.r.t x2): Mean -4, SE 7e-04
+> 
+> b[3] 95% CI: -4.2 to -3.8
+>
+> Parameter b[4] (interaction term between x1 and x2): Mean 0.5, SE 6e-5
+>
+> b[4] 95% CI: 0.48 to 0.52
+
+### 2.D. Parameter Covariance
+
 -   Plot marginal parameter distributions and pairwise parameter
     correlations (stats and scatter plots). [B]
+
+
+```{r}
+mv.burn.dat <- as.matrix(mv.burn)
+pairs(mv.burn.dat)
+```
+
+> Well that doesn't look great:
+>
+> - b[1] (intercept) and b[2] (x1) are correlated. Meets expectations.
+> - b[1] (intercept) and b[3] (x2) are correlated. Meets expectations.
+> - b[3] (x1) and b[3](x2) are correlated. Seems we've failed to tease
+>   these two apart.
+> - b[4] (x1*x2) and b[1], b[2], b[3] are all correlated. Seems like
+>   we've failed to tease these apart.
+>
+> Let's see if the correlation matrix shows the same thing.
+
+```{r}
+cor(mv.burn.dat)
+```
+
+> b[2] and b[3] are correlated 0.75, which is high.
+>
+> b[2] and b[3] are each correlated with b[4] to the tune of 0.88, which
+> is high.
+>
+> I look forward to the chapter on dealing with correlations like this!
+
