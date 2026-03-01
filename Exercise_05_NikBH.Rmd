@@ -1,10 +1,12 @@
 ---
 title: "Introduction to JAGS"
 author: "Michael Dietze"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
-```{r,echo=FALSE}
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
 library(rjags)
 library(coda)
 
@@ -13,7 +15,6 @@ library(tidyverse)
 
 # Set random seed for reproducibility
 set.seed(20260301)
-
 ```
 
 # Introduction
@@ -482,7 +483,7 @@ inits = list(S=1/var(y))
 >
 > Or, since this is the results of just the process model, maybe it's
 > OK, because we don't end up using the degrees of freedom from the
-> data? 🤔
+> data?
 
 Unlike priors, which strictly cannot be estimated from data, it is
 perfectly fair (and in most cases encouraged) to use the available data
@@ -826,7 +827,7 @@ plot(window(jags.out, start = 4000, end = 5000))
 > plots remain consistent, though the spread shifts slightly. I'm
 > inclined to say "yes, converged" based on this.
 
-> Next up: Brooks-Gelman-rubin stats.
+> Next up: Brooks-Gelman-Rubin stats.
 
 ```{r}
 gelman.diag(jags.out)
@@ -1077,7 +1078,7 @@ plot(window(mv.out, start = 4000, end = 5000))
 > plots remain consistent from 1000 to 5000. I'm
 > inclined to say "yes, converged" based on this.
 
-> Next up: Brooks-Gelman-rubin stats.
+> Next up: Brooks-Gelman-Rubin stats.
 
 ```{r}
 gelman.diag(mv.out)
@@ -1096,11 +1097,15 @@ gelman.diag(window(mv.out, end = 1000))
 > Let's zoom in to the first 1000 and get the BGR plot
 
 ```{r}
-gelman.plot(window(mv.out, end = 1000))
+for (var in varnames(mv.out)) {
+  gelman.plot(
+    mv.out[, var, drop = FALSE] |>
+      window(end = 1000)
+  )
+}
 ```
 
-> Maybe there's a way to configure the lot to not squish the vertical
-> axis, but I haven't found it. In any case, like Task 1, it looks
+> Like Task 1, it looks
 > like convergence happens by iteration 250 or so.
 
 ```{r}
@@ -1150,12 +1155,14 @@ pairs(mv.burn.dat)
 
 > Well that doesn't look great:
 >
+> - S isn't really correlated with anything; good!
 > - b[1] (intercept) and b[2] (x1) are correlated. Meets expectations.
 > - b[1] (intercept) and b[3] (x2) are correlated. Meets expectations.
 > - b[3] (x1) and b[3](x2) are correlated. Seems we've failed to tease
 >   these two apart.
-> - b[4] (x1*x2) and b[1], b[2], b[3] are all correlated. Seems like
->   we've failed to tease these apart.
+> - b[4] (x1*x2) and b[1], b[2], b[3] are all correlated. This meets
+>   expectations, since it's an interaction term between x1 and x2,
+>   and both of those are correlated with b[1] (intercept).
 >
 > Let's see if the correlation matrix shows the same thing.
 
@@ -1165,8 +1172,5 @@ cor(mv.burn.dat)
 
 > b[2] and b[3] are correlated 0.75, which is high.
 >
-> b[2] and b[3] are each correlated with b[4] to the tune of 0.88, which
-> is high.
->
-> I look forward to the chapter on dealing with correlations like this!
+> I look forward to the section on dealing with correlations like this!
 
