@@ -854,7 +854,13 @@ BGR <- gelman.plot(jags.out)
 > that?
 
 ```{r}
-gelman.plot(window(jags.out, end = 1000))
+for (var in varnames(jags.out)) {
+  gelman.plot(
+    jags.out[, var, drop = FALSE] |>
+      window(end = 1000)
+  )
+  abline(h = 1.05, col = "blue", lty = 3)
+}
 ```
 
 > It looks like S has converged by iteration 100 or so.
@@ -1102,6 +1108,7 @@ for (var in varnames(mv.out)) {
     mv.out[, var, drop = FALSE] |>
       window(end = 1000)
   )
+  abline(h = 1.05, col = "blue", lty = 3)
 }
 ```
 
