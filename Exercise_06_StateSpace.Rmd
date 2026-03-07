@@ -31,7 +31,6 @@ library(daymetr)
 library(ecoforecastR)
 
 library(tidyverse) # Nik likes tidyverse
-library(ggmcmc) # Plot MCMC stuff using ggplot
 ```
 
 Next we'll want to grab the data we want to analyze. For this example
@@ -263,7 +262,7 @@ out_hindcast <- coda.samples(
 ```{r}
 time.rng = c(length(time) - 80, length(time))
 out_hindcast_matrix <- as.matrix(out_hindcast)
-hindcast_ci <- apply(
+ci_hindcast <- apply(
   exp(out_hindcast_matrix[, x.cols]),
   2,
   quantile,
@@ -272,7 +271,7 @@ hindcast_ci <- apply(
 
 plot(
   time,
-  hindcast_ci[2, ],
+  ci_hindcast[2, ],
   type='n',
   ylim=range(y_hindcast, na.rm=TRUE),
   ylab="Flu Index",
@@ -290,8 +289,8 @@ if (diff(time.rng) < 100) {
 }
 ecoforecastR::ciEnvelope(
   time,
-  hindcast_ci[1,],
-  hindcast_ci[3,],
+  ci_hindcast[1,],
+  ci_hindcast[3,],
   col=ecoforecastR::col.alpha("lightBlue",0.75)
 )
 points(time, y_hindcast, pch="+", cex=0.5)
@@ -783,140 +782,136 @@ NA), this time using the DLM with temperature as a covariate.
 ```{r}
 set.seed(20260306)
 
-data_hindcast <- data
-data_hindcast$y <- y_hindcast
+data_hindcast2 <- data
+data_hindcast2$y <- log(y_hindcast)
 
-out_hindcast <- ecoforecastR::fit_dlm(
+out_hindcast2 <- ecoforecastR::fit_dlm(
   model = list(
     obs="y",
     fixed="~ 1 + X + Tmin",
-    n.iternumber = 100000 # Raise # of iterations to see if tau_obs converges
+    n.iternumber = 100000 # Raise # of iterations to see if things converge
   ),
-  data_hindcast
+  data_hindcast2
 )
-for (var in varnames(out_hindcast$params)) {
+for (var in varnames(out_hindcast2$params)) {
   gelman.plot(
-    out_hindcast$params[, var, drop = FALSE]
+    out_hindcast2$params[, var, drop = FALSE],
+    ylim = range(1, 1.5)
   )
   abline(h = 1.05, col = "blue", lty = 3)
 }
 ```
 
-I have concerns about this - in particular, tau_obs does not seem to be
-converging, even after 100,000 iterations.
-
-Let's zoom in on that 60,000 - 70,000 range:
-
-```{r}
-gelman.plot(
-  out_hindcast$params[, "tau_obs"] |>
-    window(start = 60000, end = 70000)
-)
-abline(h = 1.05, col = "blue", lty = 3)
-```
-
-Well that's wrong; the 97.5% CI is only \~12 at the very start, not at
-iteration 60000. Let's plot that a different way. Using
-ggmcmc::ggs_grb(), we can use the ggplot method coord_cartesian() to
-zoom in on a section of the plot without it changing our data or its
-interpretation.
-
-```{r}
-ggmcmc::ggs(out_hindcast$params, burnin = FALSE) |>
-  filter(Parameter == "tau_obs") |>
-  ggmcmc::ggs_grb() +
-  geom_hline(yintercept = 1.05, linetype = "dashed", color = "blue") +
-  coord_cartesian(xlim = c(40000, NA)) +
-  theme_bw()
-```
-
-Here we can see that tau_obs Rhat shrink factor drops below 1.05 at
-around iteration 50,000. But this plot is very low resolution; let's
-crop out the expected burnin and try again.
-
-```{r}
-ggmcmc::ggs(out_hindcast$params) |>
-  filter(Parameter == "tau_obs") |>
-  filter(Iteration >= 50000) |>
-  mutate(Iteration = Iteration - 50000) |> # ggs_grb() cares about Iteration
-  ggmcmc::ggs_grb() +
-  geom_hline(yintercept = 1.05, linetype = "dashed", color = "blue") +
-  theme_bw()
-```
-
 So it looks like burn-in actually happens around iteration
-15,000+50,000=65,000; I'll use 75,000 to be safe.
+35,000; I'll use 50,000 to be safe.
 
 ```{r}
-params <- window(out_hindcast$params, start=75000) # longer burn-in
-plot(params)
-summary(params)
-cor(as.matrix(params))
-pairs(as.matrix(params))
+params2 <- window(out_hindcast2$params, start=50000) # longer burn-in
+plot(params2)
+summary(params2)
+cor(as.matrix(params2))
+pairs(as.matrix(params2))
 ```
 
-My concern over tau_obs continues. The trace and density plots look
-ugly, and the pairs plots look odd.
-
-Carrying on:
+Let's look at the predictions:
 
 ```{r}
 ## confidence interval
-predicted_hindcast <- as.matrix(window(out_hindcast$predict, start=75000))
+predicted_hindcast2 <- as.matrix(window(out_hindcast2$predict, start=50000))
 
-ci_hindcast <- apply(
-  exp(predicted_hindcast),
+ci_hindcast2 <- apply(
+  exp(predicted_hindcast2),
   2,
   quantile,
   c(0.025,0.5,0.975)
 )
 
-plot(
-  time,
-  ci_hindcast[2, ],
-  type='n',
-  ylim=range(y, na.rm=TRUE),
-  ylab="Flu Index",
-  log='y',
-  xlim=time[time.rng]
-)
-## adjust x-axis label to be monthly if zoomed
-if (diff(time.rng) < 100) { 
-  axis.Date(
-    1,
-    at=seq(time[time.rng[1]], time[time.rng[2]], by='month'),
-    format = "%Y-%m"
+values <- tibble(
+  date = as_date(time),
+  observed = y_hindcast,
+  hidden = c(rep(NA, length(y) - 40), y[(length(y) - 39):length(y)])
+) |>
+  slice_tail(n = 80) |>
+  pivot_longer(cols = c(observed, hidden)) |>
+  filter(!is.na(value))
+
+ci <- tibble(
+    date = as_date(time),
+    ci_low = ci_hindcast[1, ],
+    ci_high = ci_hindcast[3, ],
+    ci_name = "Random Walk"
+  ) |>
+  slice_tail(n = 80) |>
+  union_all(
+    tibble(
+      date = as_date(time),
+      ci_low = ci_hindcast2[1, ],
+      ci_high = ci_hindcast2[3, ],
+      ci_name = "DLM"
+    ) |>
+    slice_tail(n = 80)
   )
-}
-ecoforecastR::ciEnvelope(
-  time,
-  ci_hindcast[1, ],
-  ci_hindcast[3, ],
-  col=ecoforecastR::col.alpha("lightBlue",0.75)
-)
-points(
-  time,
-  y,
-  pch="+",
-  cex=0.5
-)
+
+ggplot(values, aes(date)) +
+  geom_ribbon(
+    data = ci,
+    mapping = aes(ymin = ci_low, ymax = ci_high, fill = ci_name),
+    alpha = 0.5
+  ) +
+  scale_fill_manual(
+    name = "Confidence Interval",
+    values = c("Random Walk" = "lightblue", "DLM" = "purple")
+  ) +
+  geom_point(
+    data = values,
+    mapping = aes(y = value, shape = name, color = name),
+    size = 3
+  ) +
+  scale_color_manual(
+    name = "Observations",
+    values = c("hidden" = "red", "observed" = "black")
+  ) +
+  scale_shape_manual(
+    name = "Observations",
+    values = c("hidden" = "x", "observed" = "+")
+  ) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = -30, hjust = 0, vjust = 1)) +
+  scale_y_continuous(name = "Flu Index", transform = "log10") +
+  ggtitle("Predicted vs. Observed Flu Index") +
+  xlab("Date")
 ```
-
-Why does the CI not plot?
-
-```{r}
-ci_hindcast |>
-  t() |>
-  as.data.frame() |>
-  filter(!is.finite("2.5%") | !is.finite("50%") | !is.finite("97.5%")) |>
-  nrow()
-```
-
-That's why - many of the values are ±Inf. Time to ask for help.
 
 -   Comment on how well the DLM model performed (both accuracy and
     precision) relative to the random walk and the true observations.
     How could the model be further improved?
+
+With the observed data, the accuracy of the two models is the same. Once
+the data becomes hidden, the DLM model has more values outside the CI,
+so it is less accurate than the random walk.
+
+With the observed data, the precision of the DLM model is better than
+the random walk, it looks like by up to 50% better. Once the data is
+hidden, the DLM CI grows more slowly and hits a limit within about 3
+months, then follows the overall trend of the data. So, overall, the DLM
+is much more precise than the Random Walk.
+
+> For improvements, I think the minimum temperature is a good input,
+> but I'm sticking with my previous suggestions for improvement:
+>
+> -   A time-of-year risk factor, which is just the number of cases (or
+>     fraction of population) that had the flu on that date in prior
+>     seasons. Oddly, this wants to follow the civil calendar so it can
+>     capture things like holidays. This should increase accuracy a lot.
+>
+> -   Incubation + Contagion Lag - flu takes \~2 days to incubate and is
+>     contagious for a week after, so in addition to the existing 1 week
+>     lag I'd add a 2 week lag. This would also help the model track
+>     rising and falling trends. This should increase precision a lot.
+>
+> -   Strain - add a per-year hierarchical parameter for how contagious
+>     that year's strains are. This should increase accuracy and
+>     precision.
 
 # Next steps
 
