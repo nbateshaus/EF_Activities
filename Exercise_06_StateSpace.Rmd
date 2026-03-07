@@ -1,3 +1,11 @@
+---
+title: "Exercise 6: State Space"
+author: "Nik Bates-Haus"
+output:
+  pdf_document: default
+  html_document: default
+---
+
 # Activity 6 - State-space models
 
 This activity will explore the state-space framework for modeling
@@ -16,11 +24,14 @@ you will want to download both the JAGS software and the rjags library,
 which allows R to call JAGS. We're also going to install our
 `ecoforecastR` package, which has some helper functions we will use.
 
-```{r}
+```{r setup, message = FALSE, warning = FALSE}
 library(rjags)
 library(daymetr)
 #devtools::install_github("EcoForecast/ecoforecastR",force=TRUE)
 library(ecoforecastR)
+
+library(tidyverse) # Nik likes tidyverse
+library(ggmcmc) # Plot MCMC stuff using ggplot
 ```
 
 Next we'll want to grab the data we want to analyze. For this example
@@ -582,6 +593,15 @@ names(ef.out)
 plot(df$date, df$tmin, pch=".", col="blue")
 ```
 
+```{r}
+for (var in varnames(ef.out$params)) {
+  gelman.plot(
+    ef.out$params[, var, drop = FALSE]
+  )
+  abline(h = 1.05, col = "blue", lty = 3)
+}
+```
+
 The package returns a list with four elements. `params` and `predict`
 are both the same mcmc.list objects we get back from JAGS, only split
 between the parameters and the latent state variables, respectively, to
@@ -759,6 +779,141 @@ NA), this time using the DLM with temperature as a covariate.
     observations and both the random walk and DLM models (Hint, think
     about the order you plot in so you can see both models, also
     consider including transpancy [alpha] in the CI color)
+
+```{r}
+set.seed(20260306)
+
+data_hindcast <- data
+data_hindcast$y <- y_hindcast
+
+out_hindcast <- ecoforecastR::fit_dlm(
+  model = list(
+    obs="y",
+    fixed="~ 1 + X + Tmin",
+    n.iternumber = 100000 # Raise # of iterations to see if tau_obs converges
+  ),
+  data_hindcast
+)
+for (var in varnames(out_hindcast$params)) {
+  gelman.plot(
+    out_hindcast$params[, var, drop = FALSE]
+  )
+  abline(h = 1.05, col = "blue", lty = 3)
+}
+```
+
+I have concerns about this - in particular, tau_obs does not seem to be
+converging, even after 100,000 iterations.
+
+Let's zoom in on that 60,000 - 70,000 range:
+
+```{r}
+gelman.plot(
+  out_hindcast$params[, "tau_obs"] |>
+    window(start = 60000, end = 70000)
+)
+abline(h = 1.05, col = "blue", lty = 3)
+```
+
+Well that's wrong; the 97.5% CI is only \~12 at the very start, not at
+iteration 60000. Let's plot that a different way. Using
+ggmcmc::ggs_grb(), we can use the ggplot method coord_cartesian() to
+zoom in on a section of the plot without it changing our data or its
+interpretation.
+
+```{r}
+ggmcmc::ggs(out_hindcast$params, burnin = FALSE) |>
+  filter(Parameter == "tau_obs") |>
+  ggmcmc::ggs_grb() +
+  geom_hline(yintercept = 1.05, linetype = "dashed", color = "blue") +
+  coord_cartesian(xlim = c(40000, NA)) +
+  theme_bw()
+```
+
+Here we can see that tau_obs Rhat shrink factor drops below 1.05 at
+around iteration 50,000. But this plot is very low resolution; let's
+crop out the expected burnin and try again.
+
+```{r}
+ggmcmc::ggs(out_hindcast$params) |>
+  filter(Parameter == "tau_obs") |>
+  filter(Iteration >= 50000) |>
+  mutate(Iteration = Iteration - 50000) |> # ggs_grb() cares about Iteration
+  ggmcmc::ggs_grb() +
+  geom_hline(yintercept = 1.05, linetype = "dashed", color = "blue") +
+  theme_bw()
+```
+
+So it looks like burn-in actually happens around iteration
+15,000+50,000=65,000; I'll use 75,000 to be safe.
+
+```{r}
+params <- window(out_hindcast$params, start=75000) # longer burn-in
+plot(params)
+summary(params)
+cor(as.matrix(params))
+pairs(as.matrix(params))
+```
+
+My concern over tau_obs continues. The trace and density plots look
+ugly, and the pairs plots look odd.
+
+Carrying on:
+
+```{r}
+## confidence interval
+predicted_hindcast <- as.matrix(window(out_hindcast$predict, start=75000))
+
+ci_hindcast <- apply(
+  exp(predicted_hindcast),
+  2,
+  quantile,
+  c(0.025,0.5,0.975)
+)
+
+plot(
+  time,
+  ci_hindcast[2, ],
+  type='n',
+  ylim=range(y, na.rm=TRUE),
+  ylab="Flu Index",
+  log='y',
+  xlim=time[time.rng]
+)
+## adjust x-axis label to be monthly if zoomed
+if (diff(time.rng) < 100) { 
+  axis.Date(
+    1,
+    at=seq(time[time.rng[1]], time[time.rng[2]], by='month'),
+    format = "%Y-%m"
+  )
+}
+ecoforecastR::ciEnvelope(
+  time,
+  ci_hindcast[1, ],
+  ci_hindcast[3, ],
+  col=ecoforecastR::col.alpha("lightBlue",0.75)
+)
+points(
+  time,
+  y,
+  pch="+",
+  cex=0.5
+)
+```
+
+Why does the CI not plot?
+
+```{r}
+ci_hindcast |>
+  t() |>
+  as.data.frame() |>
+  filter(!is.finite("2.5%") | !is.finite("50%") | !is.finite("97.5%")) |>
+  nrow()
+```
+
+That's why - many of the values are ±Inf. Time to ask for help.
+
 -   Comment on how well the DLM model performed (both accuracy and
     precision) relative to the random walk and the true observations.
     How could the model be further improved?
