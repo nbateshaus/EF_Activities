@@ -578,6 +578,10 @@ ef.out <- ecoforecastR::fit_dlm(model=list(obs="y",fixed="~ 1 + X + Tmin"),data)
 names(ef.out)
 ```
 
+```{r}
+plot(df$date, df$tmin, pch=".", col="blue")
+```
+
 The package returns a list with four elements. `params` and `predict`
 are both the same mcmc.list objects we get back from JAGS, only split
 between the parameters and the latent state variables, respectively, to
@@ -610,20 +614,23 @@ which we can view as:
 strsplit(ef.out$model,"\n",fixed = TRUE)[[1]]
 ```
 
-This code illustrates a few things: \* The "Priors" section is identical
-to our earlier random walk model \* The "Random Effects" section, which
-is currently commented out, illustrates that the `ecoforcastR::fit_dlm`
-function supports random effects, which can be turned on via the
-`model$random` argument \* The "Fixed Effects" section contains
-additional priors for our fixed effects as well as priors on the means
-(mu) and precisions (tau) of the covariates. \* The "Data Model" section
-is the same as in our random walk except for the addition of code for
-the means of the covariates. This code is here as a very simple missing
-data model -- any time the covariate is observed it is used to estimate
-the mean and precision, but any time the covariate is missing (NA) it is
-imputed. \* The "Process Model" is very similar to the random walk,
-except now the expected value (mu) is calculated according to the linear
-model described earlier
+This code illustrates a few things:
+
+-   The "Priors" section is identical to our earlier random walk model
+-   The "Random Effects" section, which is currently commented out,
+    illustrates that the `ecoforcastR::fit_dlm` function supports random
+    effects, which can be turned on via the `model$random` argument
+-   The "Fixed Effects" section contains additional priors for our fixed
+    effects as well as priors on the means (mu) and precisions (tau) of
+    the covariates.
+-   The "Data Model" section is the same as in our random walk except
+    for the addition of code for the means of the covariates. This code
+    is here as a very simple missing data model -- any time the
+    covariate is observed it is used to estimate the mean and precision,
+    but any time the covariate is missing (NA) it is imputed.
+-   The "Process Model" is very similar to the random walk, except now
+    the expected value (mu) is calculated according to the linear model
+    described earlier
 
 Finally, the returned object also includes the `data` that was used to
 fit the model.
@@ -633,25 +640,120 @@ fit the model.
 -   Compare the process and observation error estimates and model CI
     between this fit and the original random walk model. How much has
     the residual variance been reduced by?
+
+> Observation error (precision) is in tau_obs
+>
+> Process error (precision) is in tau_add
+>
+> Parameters are in ef.out\$params
+
+```{r}
+data.frame(
+  tau_add = quantile(
+    ef.out$params |>
+      window(start = 1000) |>
+      as.matrix() |>
+      _[, "tau_add"],
+    c(0.025, 0.25, 0.5, 0.75, 0.975)
+  ),
+  tau_obs = quantile(
+    ef.out$params |>
+      window(start = 1000) |>
+      as.matrix() |>
+      _[, "tau_obs"],
+    c(0.025, 0.25, 0.5, 0.75, 0.975)
+  )
+)
+```
+
+> So, tau_add (process precision) is about the same as the model without
+> climate data.
+>
+> But, tau_obs (observation precision) has gone way up. Converting
+> precision to variance, the variance in the original, full-data run was
+> $1/62=0.016$, the variance with the addition of climate is
+> $1/230=0.004$, so ¼ of the original variance, so the original variance
+> has been reduced by ¾.
+
 -   Explain and discuss the parameter estimates (betas) from the dynamic
     linear model (what do they mean both biologically and in terms of
     the predictability of the system) and their correlations
+
+> There are three betas estimated in the model: betaIntercept, betaX,
+> betaTmin.
+
+```{r}
+post_burn_in_params <- ef.out$params |>
+      window(start = 1000) |>
+      as.matrix()
+
+data.frame(
+  betaIntercept = quantile(
+    post_burn_in_params |>
+      _[, "betaIntercept"],
+    c(0.025, 0.25, 0.5, 0.75, 0.975)
+  ),
+  betaX = quantile(
+    post_burn_in_params |>
+      _[, "betaX"],
+    c(0.025, 0.25, 0.5, 0.75, 0.975)
+  ),
+  betaTmin = quantile(
+    post_burn_in_params |>
+      _[, "betaTmin"],
+    c(0.025, 0.25, 0.5, 0.75, 0.975)
+  )
+)
+cor(post_burn_in_params[, c("betaIntercept", "betaX", "betaTmin")])
+```
+
+> Biologically, betaIntercept is the base flu rate (frequency of
+> flu-related search queries, which we presume to be related to the
+> frequency of flu-like symptoms, which we presume to be related to the
+> frequency of flu). Absent other information, this is what we would
+> guess as the flu rate. In terms of the predictability of the system
+> betaIntecept is the bar ($\bar{x}$) around which predictions gyre.
+>
+> Biologically, betaX is how the flu rate at time t tends to differ from
+> the flu rate at time t-1 - it is a base rate of growth or decay. In
+> terms of the predictability of the system, a positive betaX will tend
+> to increase the flu rate, and a negative betaX will tend to decrease
+> the flu rate.
+>
+> Biologically, betaTmin is the influence of daily minimum temperature
+> on flu rate. In terms of the predictability of the system, a larger
+> magnitude betaTmin means a larger influence of temperature on flu, and
+> a negative betaTmin means that lower temperatures correlate with
+> higher flu.
+>
+> The correlations show that betaIntercept and betaX are very highly
+> correlated, but with opposite sign (-0.99). Thus, if the mean flu rate
+> is high, then flu tends to decline; whereas if mean flu rate is low,
+> flu tends to increase. betaTmin is fairly well correlated with the
+> other two, also negatively with betaIntercept. Thus, if the mean flu
+> rate is low, then colder temperatures will strongly increase flu rate,
+> and if the mean flu rate is high, then warmer temperatures will
+> strongly decrease flu rate.
+
 -   Because a state-space model returns X's that are close to the Y's,
     metrics such as R2 and RMSE aren't great metrics of model
     performance. Besides looking at the taus, how else could we judge
     which model is doing better (in a way that avoids/penalizes
     overfitting)?
 
-> Hint: can remove some data at the end and see what happens to the
-> bounds
+> 1.  We can hide some data from the model and see how it performs on
+>     the hidden data. We did that two ways up above: hide the last 40
+>     observations, and hide 3 out of 4 observations. Jackknifing and
+>     bootstrapping are traditional methods of testing a model's
+>     sensitivity to held-out data.
 
-> Hint: can do stepwise forecast outside JAGS at each data point, see
-> what its prediction is vs. reality
+> 2.  Run the model stepwise (outside the JAGS framework) and see how
+>     well it does at predicting each timestep.
 
 ## Question 4 [B]:
 
 Repeat the process of forecasting the last 40 observations (convert to
-NA), this time using the DLM with temperature as a covariate
+NA), this time using the DLM with temperature as a covariate.
 
 -   Generate a time-series plot for the CI that includes the
     observations and both the random walk and DLM models (Hint, think
