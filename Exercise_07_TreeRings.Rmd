@@ -1,27 +1,45 @@
-Fusing Times-Series Data: Tree Rings and Forest Inventory
-========================================================
+# Fusing Times-Series Data: Tree Rings and Forest Inventory
 
-In this exercise we will extend the state-space framework to combine multiple data streams with different observation errors and to separate observation error from process error. We will also demonstrate how to add hierarchical random effects to partition the process error into multiple sources.
+In this exercise we will extend the state-space framework to combine
+multiple data streams with different observation errors and to separate
+observation error from process error. We will also demonstrate how to
+add hierarchical random effects to partition the process error into
+multiple sources.
 
-Specifically, we will be building up to the model presented by Clark et al. 2007 Ecological Applications that combines tree ring data with forest inventory data. Unlike the original model, which was written all in R, we will rewrite this model into JAGS, which makes it easier to see what is going on and to modify the model. In this exercise we will utilize data from a collection of small plots at the Harvard Forest, Petersham, MA.
+Specifically, we will be building up to the model presented by Clark et
+al. 2007 Ecological Applications that combines tree ring data with
+forest inventory data. Unlike the original model, which was written all
+in R, we will rewrite this model into JAGS, which makes it easier to see
+what is going on and to modify the model. In this exercise we will
+utilize data from a collection of small plots at the Harvard Forest,
+Petersham, MA.
 
-We will divide this analysis into a number of steps, which we will encapsulate into functions to make them easier to understand and run. Thus we will begin by defining these functions. Specifically, the steps will be:
+We will divide this analysis into a number of steps, which we will
+encapsulate into functions to make them easier to understand and run.
+Thus we will begin by defining these functions. Specifically, the steps
+will be:
 
-1. load forest inventory data
-2. load tree ring data
-3. match the tree core and inventory data for individual trees and merge these data sets into one data frame
-4. format this data into a list for input into JAGS
-5. run the JAGS model
-6. visualize the output
+1.  load forest inventory data
+2.  load tree ring data
+3.  match the tree core and inventory data for individual trees and
+    merge these data sets into one data frame
+4.  format this data into a list for input into JAGS
+5.  run the JAGS model
+6.  visualize the output
 
 ```{r}
 library(rjags)
 library(ecoforecastR)
 ```
 
-Steps 1-4 have already been done for you and leverages functions that are part of the [PEcAn system](https://pecanproject.org). Specifically, they are within PEcAn's land data R package, which can be downloaded and installed off Github using `remotes` or `devtools`. Because these steps have been done fore you, you don't need to run the following chunk of code.
+Steps 1-4 have already been done for you and leverages functions that
+are part of the [PEcAn system](https://pecanproject.org). Specifically,
+they are within PEcAn's land data R package, which can be downloaded and
+installed off Github using `remotes` or `devtools`. Because these steps
+have been done fore you, you don't need to run the following chunk of
+code.
 
-```
+```         
 if(!require(PEcAn.data.land)){
   library(remotes)
   install.packages(c("digest","dplR","PeriodicTable"),repos = "https://cloud.r-project.org")
@@ -47,8 +65,8 @@ knitr::kable(combined[1:5,])
 
 ## 4. organize data into a list
 data <- buildJAGSdata_InventoryRings(combined)
-
 ```
+
 Instead we'll just load and investigate the final, prepared data object
 
 ```{r}
@@ -63,10 +81,12 @@ knitr::kable(head(data$y))
 knitr::kable(head(data$z))
 ```
 
+Now that we have the data prepped we need to fit the model itself. The
+bulk of this code is just the same JAGS syntax we've used before, so
+lets focus on the JAGS code itself. To begin with, lets look back at the
+JAGS code for the random walk
 
-Now that we have the data prepped we need to fit the model itself. The bulk of this code is just the same JAGS syntax we've used before, so lets focus on the JAGS code itself. To begin with, lets look back at the JAGS code for the random walk
-
-```
+```         
 model{
   
   #### Data Model
@@ -86,9 +106,12 @@ model{
 }
 ```
 
-Since we're fusing two data sources, we'll need to add a second data model. We'll also modify our process model to include a mean growth rate term. Finally, we'll need to specify priors on both observation errors, the process error, and the mean.
+Since we're fusing two data sources, we'll need to add a second data
+model. We'll also modify our process model to include a mean growth rate
+term. Finally, we'll need to specify priors on both observation errors,
+the process error, and the mean.
 
-```
+```         
 model{
 
   #### Data Model: DBH
@@ -118,9 +141,11 @@ model{
 }
 ```
 
-This code would work perfectly if we only had only measured a single tree, but we measured a number of trees so next need to modify the code to work with tree-by-year matrices of DBH and growth.
+This code would work perfectly if we only had only measured a single
+tree, but we measured a number of trees so next need to modify the code
+to work with tree-by-year matrices of DBH and growth.
 
-```
+```         
 model{
 
   ### Loop over all individuals
@@ -154,13 +179,18 @@ model{
 }
 ```
 
-Finally, since growth is indexed by both tree and year, lets add random effects for both individuals and years. In this case our process model now becomes
+Finally, since growth is indexed by both tree and year, lets add random
+effects for both individuals and years. In this case our process model
+now becomes
 
 `Dnew[i,t] <- x[i,t-1] + mu + ind[i] + year[t]`
 
-where `ind` and `year` are the random effects for individual and year respectively. Next, we'll need to specify the distributions that these random effects are drawn from, as well as the priors on the random effect variances
+where `ind` and `year` are the random effects for individual and year
+respectively. Next, we'll need to specify the distributions that these
+random effects are drawn from, as well as the priors on the random
+effect variances
 
-```
+```         
 model{
   
 ### Loop over all individuals
@@ -208,7 +238,8 @@ for(i in 1:ni){
   }
 ```
 
-Putting this all together gives the following R code for the base case (no random effects) 
+Putting this all together gives the following R code for the base case
+(no random effects)
 
 ```{r, fig.asp=0.8}
 
@@ -294,9 +325,20 @@ for(i in 1:ni){
                               n.iter = n.iter)
 ```
 
-Next, lets generate some diagnostic plots to look at the model. First, lets plot the posterior CI for growth and DBH and compare these to observations. Since we have scores of cores and trees, we'll pick a random subset of trees to check. 
+Next, lets generate some diagnostic plots to look at the model. First,
+lets plot the posterior CI for growth and DBH and compare these to
+observations. Since we have scores of cores and trees, we'll pick a
+random subset of trees to check.
 
-One thing that's critical to note is that for the confidence intervals on growth that these are calculated **pathwise** -- we're looking at the growth from a whole MCMC iteration -- rather than pairwise (i.e. subtracting the posterior distribution for DBH at one point from the posterior distribution of DBH at the next). Because there's high correlations between successive time points, the pathwise uncertainty estimates are considerably lower in uncertainty -- essentially saying that we know can know the growth rate of the tree better than we can know the actual size of the tree
+One thing that's critical to note is that for the confidence intervals
+on growth that these are calculated **pathwise** -- we're looking at the
+growth from a whole MCMC iteration -- rather than pairwise (i.e.
+subtracting the posterior distribution for DBH at one point from the
+posterior distribution of DBH at the next). Because there's high
+correlations between successive time points, the pathwise uncertainty
+estimates are considerably lower in uncertainty -- essentially saying
+that we know can know the growth rate of the tree better than we can
+know the actual size of the tree
 
 ```{r, fig.height=8}
 #### Helper function to parse JAGS variable names that include matrix syntax (e.g. "x[40,13]")
@@ -346,8 +388,9 @@ parse.MatrixNames <- function(w, pre = "x", numeric = FALSE) {
   }
 ```
 
-
-Second, let's look at the histogram of our fixed effect, mu, and the precisions. Let's also convert the precisions to standard deviations to make them easier to interpret
+Second, let's look at the histogram of our fixed effect, mu, and the
+precisions. Let's also convert the precisions to standard deviations to
+make them easier to interpret
 
 ```{r}
   ## process model
@@ -369,8 +412,11 @@ Second, let's look at the histogram of our fixed effect, mu, and the precisions.
   pairs(prec)
 ```
 
-
-Third, let's look at the random effects. It is easy enough to plot the year effects by year. For the individual effects we'll plot these twice, first ordering the effects by plot and the second ordering them by species. Note that this chunk of code will not plot ANYTHING until the year and/or individual effects are added to the model.
+Third, let's look at the random effects. It is easy enough to plot the
+year effects by year. For the individual effects we'll plot these twice,
+first ordering the effects by plot and the second ordering them by
+species. Note that this chunk of code will not plot ANYTHING until the
+year and/or individual effects are added to the model.
 
 ```{r}
   load("data/combined.07.RData")
@@ -407,36 +453,71 @@ Third, let's look at the random effects. It is easy enough to plot the year effe
   }
 ```
 
-
-
-By default this code is set to run with a small number of years (15), and a much too low number of MCMC iterations (500), just so that the code with "knit" quickly initially. **For your analyses you should obviously increase these** -- I found that convergence was adequate with around 20,000 samples, though I probably would run 10x longer than that for a publishable analysis. However, such an analysis would take hours to run.
+By default this code is set to run with a small number of years (15),
+and a much too low number of MCMC iterations (500), just so that the
+code with "knit" quickly initially. **For your analyses you should
+obviously increase these** -- I found that convergence was adequate with
+around 20,000 samples, though I probably would run 10x longer than that
+for a publishable analysis. However, such an analysis would take hours
+to run.
 
 Assignment:
 
-1. Run the model initially with random effects off. [A]
+1.  Run the model initially with random effects off. [A]
 
-2. Rerun the model with both random effects on. 
-* Make sure to check convergence, burn-in, and effective sample size. [A]
-* Compare model fit and parameter estimates to the previous run.[A] 
-* What is the relative partitioning of uncertainties in the different versions of the model among observation error, process error, and the different random effects? [B]
-* What does the size of these effects suggest about the drivers of uncertainty in tree growth? [B]
+2.  Rerun the model with both random effects on.
 
-3. Based on the diagnostics, propose an additional effect (fixed or random) to add to the model. Such an effect should plausibly chip away at a sizable fraction of the unexplained variability -- you wouldn't want to propose an effect that isn't associated with systematic variability. [A]
+-   Make sure to check convergence, burn-in, and effective sample size.
+    [A]
+-   Compare model fit and parameter estimates to the previous run.[A]
+-   What is the relative partitioning of uncertainties in the different
+    versions of the model among observation error, process error, and
+    the different random effects? [B]
+-   What does the size of these effects suggest about the drivers of
+    uncertainty in tree growth? [B]
 
-4. Explain any additional exploratory analyses you would perform (e.g. plotting your proposed covariate against one of the random effects). [B]
+3.  Based on the diagnostics, propose an additional effect (fixed or
+    random) to add to the model. Such an effect should plausibly chip
+    away at a sizable fraction of the unexplained variability -- you
+    wouldn't want to propose an effect that isn't associated with
+    systematic variability. [A]
 
-5. Write the JAGS code that would fit the proposed model (note: you don't have to track down additional covariate data or run this model, just propose the code) [A]
+4.  Explain any additional exploratory analyses you would perform (e.g.
+    plotting your proposed covariate against one of the random effects).
+    [B]
 
-**BECAUSE THE PRODUCTION VERSION OF THIS CODE TAKES A LONG TIME TO RUN, PLEASE SUBMIT THE KNIT HTML NOT THE Rmd**
+5.  Write the JAGS code that would fit the proposed model (note: you
+    don't have to track down additional covariate data or run this
+    model, just propose the code) [A]
+
+**BECAUSE THE PRODUCTION VERSION OF THIS CODE TAKES A LONG TIME TO RUN,
+PLEASE SUBMIT THE KNIT HTML NOT THE Rmd**
 
 ## Applying this to your own forecast
 
-* If you already have a state-space model running for your own model (Exercise 06) you can add additional data constraints by adding additional likelihoods to the JAGS code. For simple cases this is relatively straightforward, but you'll want to think very carefully about many of the issues raised in Chapters 6 and 9 when constructing your likelihood (model and data biases, autocorrelation, spatial and temporal aggregation, proxy data, non-Gaussian error, etc.)
+-   If you already have a state-space model running for your own model
+    (Exercise 06) you can add additional data constraints by adding
+    additional likelihoods to the JAGS code. For simple cases this is
+    relatively straightforward, but you'll want to think very carefully
+    about many of the issues raised in Chapters 6 and 9 when
+    constructing your likelihood (model and data biases,
+    autocorrelation, spatial and temporal aggregation, proxy data,
+    non-Gaussian error, etc.)
 
-* If you are forecasting multiple variables (e.g. different sites, individuals, species, etc.), the code above provides a useful template for how to organize loops over multiple timeseries.
+-   If you are forecasting multiple variables (e.g. different sites,
+    individuals, species, etc.), the code above provides a useful
+    template for how to organize loops over multiple timeseries.
 
-* The code above also provides a useful template for adding different random effects 
+-   The code above also provides a useful template for adding different
+    random effects
 
-* While the `fit_dlm` function discussed in Exercise 06 doesn't yet support data fusion models or multivariate models, the `ParseFixed` function in the ecoforecastR package can be used to help expand a basic random walk model to a more complex model.
+-   While the `fit_dlm` function discussed in Exercise 06 doesn't yet
+    support data fusion models or multivariate models, the `ParseFixed`
+    function in the ecoforecastR package can be used to help expand a
+    basic random walk model to a more complex model.
 
-* When developing your own more sophisticated analyses, make sure to start simple and add complexity incrementally. By only adding one new thing at a time it becomes much easier to debug when something goes wrong and to stop when you push the model beyond the constraints the data are able to provide.
+-   When developing your own more sophisticated analyses, make sure to
+    start simple and add complexity incrementally. By only adding one
+    new thing at a time it becomes much easier to debug when something
+    goes wrong and to stop when you push the model beyond the
+    constraints the data are able to provide.
