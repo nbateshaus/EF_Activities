@@ -7,7 +7,14 @@
 # R data files from past sessions
 .Rdata
 .Rproj.user
+*.RData
+*.rds
+*.csv
 
 ## knitr
 *.html
 *.md
+*.pdf
+
+## MacOS
+.DS_Store
