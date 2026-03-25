@@ -829,6 +829,28 @@ The CIs are all tighter than from the model without random effects,
 and tree 49 growth is all within the CI except year 2009, which
 is much better.
 
+Here are the histograms of the fixed effects and parameters:
+
+```{r}
+  ## process model
+  vars = (1:ncol(re.mtx))[-c(which(substr(colnames(re.mtx),1,1)=="x"),grep("tau",colnames(re.mtx)),
+                          grep("year",colnames(re.mtx)),grep("ind",colnames(re.mtx)))]
+  par(mfrow=c(1,1))
+  for(i in vars){
+    hist(re.mtx[,i],main=colnames(re.mtx)[i])
+  }
+  if(length(vars)>1) pairs(re.mtx[,vars])
+
+  ## Standard Deviations
+  par(mfrow=c(2,3))
+  prec = re.mtx[,grep("tau",colnames(re.mtx))] ## select just taus to plot
+  for(i in 1:ncol(prec)){
+    hist(1/sqrt(prec[,i]),main=colnames(prec)[i])
+  }
+  cor(prec)
+  pairs(prec)
+```
+
 ### Patitioning of Uncertainties
 
 -   What is the relative partitioning of uncertainties in the different
@@ -967,14 +989,26 @@ according to the literature on each species. That is not needed
 for this exercise - JAGS will figure it out from an uninformative
 prior.
 
-> In Class Note: pick a thing with wich growth varies a lot and propose
-> something to explain it
-
 ## 4. Additional Exploratory Analyses
 
 4.  Explain any additional exploratory analyses you would perform (e.g.
     plotting your proposed covariate against one of the random effects).
     [B]
+
+I would be interested in the relative allocation of uncertainty
+to species vs. individual effects - in particular, I would expect that
+adding a species effect would reduce the size of the individual random
+effect. It should also reduce the size of the year effect, but that'll
+be a little harder to judge since the year effect is transformed into
+a year/species random effect. But the aggregate uncertainty allocated
+to year/species can be compared to the uncertainty allocated to
+year in the current model.
+
+I would also plot the distribution of species effects by species,
+and I think it would be really interesting to see how the year
+effect varied by species over time. I'm picturing a braid
+of line plots, one line/color per species, with year on the X axis and
+tau_yr on the Y axis.
 
 ## 5. Proposed Model
 
