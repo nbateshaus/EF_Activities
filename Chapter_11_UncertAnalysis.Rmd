@@ -662,6 +662,147 @@ the above analysis as an ensemble:
     approximation compares to the original and updated Monte Carlo
     estimates.
 
+> NikBH: As a reminder, here are the CIs using quantile
+
+```{r, fig.asp=0.8}
+## states  
+ci <- apply(as.matrix(out$predict),2,quantile,c(0.025,0.5,0.975))
+plot(0,0,type = "n",xlim=c(0,NT),ylim = range(ci),xlab="time",ylab="N")
+for(s in 1:NS){
+  sel = seq(s,ncol(ci),by=NS)
+  ecoforecastR::ciEnvelope(time1,ci[1,sel],ci[3,sel],col=col.alpha(s,0.6))
+  lines(time1,ci[2,sel],col=s)
+  points(time1,No[s,],col=s,pch=19)
+  points(time1,No[s,])
+}
+```
+
+> Replacing quantile with sd we get:
+
+```{r, fig.asp=0.8}
+## A function to get mean +- sd
+extract_sd <- function(x) {
+  # I'm using 2*sd because that's closer to a 95% CI; 1sd is about 68%.
+  c(low = mean(x) - 2 * sd(x), mean = mean(x), high = mean(x) + 2 * sd(x))
+}
+
+sd_interval <- apply(as.matrix(out$predict),2,extract_sd)
+plot(0,0,type = "n",xlim=c(0,NT),ylim = range(sd_interval),xlab="time",ylab="N")
+for(s in 1:NS){
+  sel = seq(s,ncol(sd_interval),by=NS)
+  ecoforecastR::ciEnvelope(time1,sd_interval[1,sel],sd_interval[3,sel],col=col.alpha(s,0.6))
+  lines(time1,sd_interval[2,sel],col=s)
+  points(time1,No[s,],col=s,pch=19)
+  points(time1,No[s,])
+}
+```
+
+> Mean +- sd is slightly narrower than median +- 95% ci. But very close!
+
+> Predicting the same single site using sd instead of ci
+
+```{r}
+plot.run.sd <- function(){
+  sel = seq(s,ncol(sd_interval),by=NS)
+  plot(time,time,type='n',ylim=ylim,ylab="N")
+  ecoforecastR::ciEnvelope(time1,sd_interval[1,sel],sd_interval[3,sel],col=col.alpha("lightBlue",0.6))
+  lines(time1,sd_interval[2,sel],col="blue")
+  points(time1,No[s,])
+}
+```
+
+```{r,echo=FALSE}
+sd_interval <- apply(as.matrix(out$predict),2,extract_sd)
+plot.run.sd()
+```
+
+> Here's the predictive intervals using 95% CI:
+
+```{r}
+plot.run()
+ecoforecastR::ciEnvelope(time2,N.IPDE.ci[1,],N.IPDE.ci[3,],col=col.alpha(N.cols[4],trans))
+ecoforecastR::ciEnvelope(time2,N.IPD.ci[1,],N.IPD.ci[3,],col=col.alpha(N.cols[3],trans))
+ecoforecastR::ciEnvelope(time2,N.IP.ci[1,],N.IP.ci[3,],col=col.alpha(N.cols[2],trans))
+ecoforecastR::ciEnvelope(time2,N.I.ci[1,],N.I.ci[3,],col=col.alpha(N.cols[1],trans))
+lines(time2,N.I.ci[2,],lwd=0.5)
+```
+
+> And again, using sd instead of ci:
+
+```{r}
+N.I.sd = apply(N.I,2,extract_sd)
+N.IP.sd = apply(N.IP,2,extract_sd)
+N.IPD.sd = apply(N.IPD,2,extract_sd)
+N.IPDE.sd = apply(N.IPDE,2,extract_sd)
+plot.run.sd()
+ecoforecastR::ciEnvelope(time2,N.IPDE.sd[1,],N.IPDE.sd[3,],col=col.alpha(N.cols[4],trans))
+ecoforecastR::ciEnvelope(time2,N.IPD.sd[1,],N.IPD.sd[3,],col=col.alpha(N.cols[3],trans))
+ecoforecastR::ciEnvelope(time2,N.IP.sd[1,],N.IP.sd[3,],col=col.alpha(N.cols[2],trans))
+ecoforecastR::ciEnvelope(time2,N.I.sd[1,],N.I.sd[3,],col=col.alpha(N.cols[1],trans))
+lines(time2,N.I.sd[2,],lwd=0.5)
+```
+
+> The predicted interval is narrower, but not much narrower, so this
+> seems like a pretty good approximation.
+
+> Reduce the sample size to 30 (reduce by a factor of 33), which seems
+> like the kind of ensemble size a frequentist might select.
+
+```{r}
+prow.30 = sample.int(nrow(params),30,replace=TRUE)
+drow.30 = sample.int(nrow(ppt_ensemble),30,replace=TRUE)
+
+N.I.30 <- forecastN(IC=IC[prow.30,"N[6,30]"],  ## sample IC
+                   ppt=ppt.mean,
+                   r=param.mean["r_global"],
+                   Kg=param.mean["K_global"],
+                   beta=param.mean["beta"],
+                   alpha=param.mean["alpha_site[6]"],
+                   Q=0,
+                   n=30)
+N.I.30.sd = apply(N.I.30,2,extract_sd)
+N.IP.30 <- forecastN(IC=IC[prow.30,"N[6,30]"],  ## sample IC
+                   ppt=ppt.mean,
+                   r=params[prow.30,"r_global"],  ## sample parameters
+                   Kg=params[prow.30,"K_global"],
+                   beta=params[prow.30,"beta"],
+                   alpha=params[prow.30,"alpha_site[6]"],
+                   Q=0,
+                   n=30)
+N.IP.30.sd = apply(N.IP.30,2,extract_sd)
+N.IPD.30 <- forecastN(IC=IC[prow.30,"N[6,30]"],  ## sample IC
+                   ppt=ppt_ensemble[drow.30,],   ## Sample drivers
+                   r=params[prow.30,"r_global"],  ## sample parameters
+                   Kg=params[prow.30,"K_global"],
+                   beta=params[prow.30,"beta"],
+                   alpha=params[prow.30,"alpha_site[6]"],
+                   Q=0,
+                   n=30)
+N.IPD.30.sd = apply(N.IPD.30,2,extract_sd)
+N.IPDE.30 <- forecastN(IC=IC[prow.30,"N[6,30]"],  ## sample IC
+                   ppt=ppt_ensemble[drow.30,],   ## Sample drivers
+                   r=params[prow.30,"r_global"],  ## sample parameters
+                   Kg=params[prow.30,"K_global"],
+                   beta=params[prow.30,"beta"],
+                   alpha=params[prow.30,"alpha_site[6]"],
+                   Q=Qmc,
+                   n=30)
+N.IPDE.30.sd = apply(N.IPDE.30,2,extract_sd)
+plot.run.sd()
+ecoforecastR::ciEnvelope(time2,N.IPDE.30.sd[1,],N.IPDE.30.sd[3,],col=col.alpha(N.cols[4],trans))
+ecoforecastR::ciEnvelope(time2,N.IPD.30.sd[1,],N.IPD.30.sd[3,],col=col.alpha(N.cols[3],trans))
+ecoforecastR::ciEnvelope(time2,N.IP.30.sd[1,],N.IP.30.sd[3,],col=col.alpha(N.cols[2],trans))
+ecoforecastR::ciEnvelope(time2,N.I.30.sd[1,],N.I.30.sd[3,],col=col.alpha(N.cols[1],trans))
+lines(time2,N.I.30.sd[2,],lwd=0.5)
+```
+
+> The smaller ensemble size (30, vs. 1000) shows a forecast that is
+> remarkably similar to the forecast with the full ensemble, especially
+> in the early parts of the forecast. As the forecast extends past 50,
+> the driver uncertainty is relatively underestimated. I speculate that
+> the sample size of 30 simply doesn't represent the full uncertainty of
+> precipitation.
+
 **2) Analytical uncertainty propagation:** For even more computationally
 demanding problems, or problems where an analytical solution is
 desirable, it is also possibly to approximate the uncertainty
