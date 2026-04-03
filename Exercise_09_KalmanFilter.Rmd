@@ -50,6 +50,16 @@ To be more specific, lets assume a simple flux process just based on adjacency, 
 
 $X_{i,t+1} = X_{i,t} + \alpha*\sum(adj_{i,j}*(X_{j,t}-X_{i,t}))+\epsilon_{i,t}$
 
+> In-class notes:
+>
+> * i is state,
+> * adj[i, j] is a spatial diffusion parameter / adjacency matrix
+> 
+> Will run in four ways, with spatial diffusion on/off and with
+> spatial covariance on/off.
+> 
+> WIth both on is the full model, with both off is "oo" (random walk)
+
 Thus, if state j has more cases than state i, this will tend to increase infection in state i. For your reference, below is the JAGS model fit to the log-transformed flu data
 
 ```{r}
@@ -272,6 +282,12 @@ lines(time3,mu,lwd=2)
 points(time,Y[1,])
 ```
 
+> Notes from class:
+>
+> It's always good to check that your process uncertainty is less than
+> your analysis uncertainty (did I get that backwards? the lines in the
+> above figure meet the goal).
+
 ## Assignment
 
 Run the KF under all four combinations of covariance in the process model versus process error and compare the results. In particular you'll want to pay attention to the missing data at the beginning of the timeseries for some states. You'll also want to comment on how spatial adjacency affects the confidence in the inferences (some states are more isolated than others) in the four different scenarios. Finally, you'll want to note that the alpha estimated from the data itself (0.000209), is close to zero and thus our real forecast would be much more like our no-flux run than our high flux run.
@@ -285,6 +301,26 @@ Task 3, KF10 [B]: Rerun with alpha = 0.05 but switch back to the *diagonal* Q ma
 Task 4, KF11 [A]: Rerun with alpha = 0.05 and the full process error covariance Q matrix. Compare KF11 to the previous runs -- what impact does including both a spatial process and a process error covariance have over their impacts individually.
 
 Task 5 [A]: In a true forecasting situation you don't have all the data in hand at once. You also often want to make a forecast that is farther than one time-step into the future. **Write an R function you could run daily** that would:
+
+> In-class notes:
+>
+> This one requires some thinking
+> 
+> See photo for what the figure should look like
+>
+> Before forecasting forward, you may want to re-forecast the most
+> recent timestep *if* e.g. there's new exogenous information available
+> (e.g. if a weather forecast can be replaced with weather obesrvation)
+> 
+> KamlanFilter function does a reanalyis - wouldn't do this unless you
+> have new data
+> 
+> Nik's q: re uncertainty in forecast covariates - you could do this,
+> but not for any assignment in this class.
+>
+> Cammy & Katherine are managing the data feeds for these projects
+> 
+> Urban hasn't updated in months, we don't know why
 
 * Take the previous forecast and the new data (for just that day) as inputs (plus any other parameters you may need)
 * Assimilates the new data
