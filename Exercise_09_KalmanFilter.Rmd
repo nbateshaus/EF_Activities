@@ -199,6 +199,12 @@ KalmanForecast <- function(mu.a,P.a,M,Q){
 }
 ```
 
+> In-class notes:
+>
+> The assumption is that what we have for time t is a forecast, so the
+> first thing we do is assimilate the new observation for time t, then
+> re-analyze time t, then re-forecast time t+1
+
 ## Applying the Kalman Filter to the Flu data
 
 With the Kalman Filter function defined, we need to define the inputs to the function. Note below that I'm using the variable KF00 to store the outputs, where I'm using 00 to indicate that this run was done with the defaults for both the process model and process error covariance. In the assignment below you will rerun this analysis under a number of alternatives varying the process error and the magnitude of spatial flux in the process model.
@@ -232,6 +238,9 @@ KF00 = KalmanFilter(M,mu0,P0,Q,R,Y)
 ## Visualizing Outputs
 
 After running the Kalman Filter, we can visualize the outputs. The first set of figures below shows the posterior analysis for each state through time. The second set shows the forecast and analysis standard deviations change through time, indicating when there is missing data in green on the bottom of the plot. As you can see the missing data is not synchronous across states, but the mean of the Analysis is influenced by the across-state covariances.
+
+> Nik note: P.a is the variance / covariance matrix; P.a[i, i] is the
+> within-state variance for state i
 
 ```{r, fig.asp=1.0}
 attach(KF00)
@@ -284,21 +293,404 @@ points(time,Y[1,])
 
 > Notes from class:
 >
-> It's always good to check that your process uncertainty is less than
-> your analysis uncertainty (did I get that backwards? the lines in the
-> above figure meet the goal).
+> It's always good to check that your analysis uncertainty is less than
+> your forecast uncertainty (the lines in the above figure meet the goal).
+>
+> Nik: Don't get hung up on the interleaved forecast and analysis above;
+> it looks like the CI is the forecast, the line is the analysis, and
+> the points are the data.
 
 ## Assignment
 
 Run the KF under all four combinations of covariance in the process model versus process error and compare the results. In particular you'll want to pay attention to the missing data at the beginning of the timeseries for some states. You'll also want to comment on how spatial adjacency affects the confidence in the inferences (some states are more isolated than others) in the four different scenarios. Finally, you'll want to note that the alpha estimated from the data itself (0.000209), is close to zero and thus our real forecast would be much more like our no-flux run than our high flux run.
 
+### Task 1
+
 Task 1, KF00 [A]: Run the default analysis, KF00, with no spatial flux in the process model, and no spatial covariance in the process error
+
+```{r}
+## options for process model 
+alpha = 0        ## assume no spatial flux
+#alpha = 0.05    ## assume a large spatial flux
+M = adj*alpha + diag(1-alpha*apply(adj,1,sum))  ## random walk with flux
+
+## options for process error covariance
+#Q = tau_proc            ## full process error covariance matrix
+Q = diag(diag(tau_proc))        ## diagonal process error matrix
+
+## prior on first step, initialize with long-term mean and covariance
+mu0 = apply(Y,1,mean,na.rm=TRUE)
+P0 = cov(t(Y),use="pairwise.complete.obs")
+#w <- P0*0+0.25 + diag(0.75,dim(P0)) ## iptional: downweight covariances in IC
+#P0 = P0*w 
+
+## Run Kalman Filter
+KF00 = KalmanFilter(M,mu0,P0,Q,R,Y)
+```
+
+Analysis means and confidence intervals:
+
+```{r, fig.asp=1.0}
+attach(KF00)
+nt = length(time)
+
+### plot ANALYSIS mean & CI time-series
+par(mfrow=c(3,1))
+for(i in 1:6){
+  ci = rbind(mu.a[i,]-1.96*sqrt(P.a[i,i,]),mu.a[i,]+1.96*sqrt(P.a[i,i,]))
+  plot(time,mu.a[i,],ylim=range(ci,na.rm=TRUE),type='n',main=states[i])
+  ecoforecastR::ciEnvelope(time,ci[1,],ci[2,],col="lightBlue")
+  lines(time,mu.a[i,],col=4)
+  lines(time,Y[i,])
+}
+```
+
+Analysis and forecast variances:
+
+```{r, fig.asp=1.0}
+## plot ANALYSIS and FORECAST variance time-series
+par(mfrow=c(3,1))
+for(i in 1:6){
+  plot(time,sqrt(P.a[i,i,]),ylim=c(0,sqrt(max(c(P.a[i,i,],P.f[i,i,])))),main=states[i],xlab="Time",
+       ylab="Std Error",type='l')
+  lines(time,sqrt(P.f[i,i,1:nt]),col=2)
+  points(time[is.na(Y[i,])],rep(0,nt)[is.na(Y[i,])],pch="*",col=3) ## flag's the zero's
+  legend("topright",legend=c("Analysis","Forecast","NAs"),col=1:3,lty=c(1,1,NA),pch=c(NA,NA,1),cex=1.4)
+}
+```
+
+And Forecast, Analysis, and observed data for Massachusetts
+
+```{r}
+## subset time
+time2 <- time[time>as.Date("2015-01-01")]
+tsel <- which(time %in% time2)
+n = length(time2)*2
+
+## interleave Forecast and Analysis
+mu = p = rep(NA,n)
+mu[seq(1,n,by=2)] = mu.f[1,tsel]
+mu[seq(2,n,by=2)] = mu.a[1,tsel]
+p[seq(1,n,by=2)]  = 1.96*sqrt(P.f[1,1,tsel])
+p[seq(2,n,by=2)]  = 1.96*sqrt(P.a[1,1,tsel])
+ci = cbind(mu-p,mu+p)
+time3 = sort(c(time2,time2+1))
+
+## plot Forecast, Analysis, and data
+plot(time3,mu,ylim=range(ci),type='l')
+ecoforecastR::ciEnvelope(time3,ci[,1],ci[,2],col="lightBlue")
+lines(time3,mu,lwd=2)
+points(time,Y[1,])
+```
+
+For reference, the first 5 elements of the confidence interval sequence are:
+```{r}
+ci |> head(5) |> apply(1, \(r) r[[2]] - r[[1]])
+```
+
+### Task 2
 
 Task 2, KF01 [A]: Rerun with process error set to the full covariance matrix of Q, compare the results with the original -- what impact does including covariance in the process error have on the inference?
 
+
+```{r}
+## options for process model 
+alpha = 0        ## assume no spatial flux
+#alpha = 0.05    ## assume a large spatial flux
+M = adj*alpha + diag(1-alpha*apply(adj,1,sum))  ## random walk with flux
+
+## options for process error covariance
+Q = tau_proc            ## full process error covariance matrix
+#Q = diag(diag(tau_proc))        ## diagonal process error matrix
+
+## prior on first step, initialize with long-term mean and covariance
+mu0 = apply(Y,1,mean,na.rm=TRUE)
+P0 = cov(t(Y),use="pairwise.complete.obs")
+#w <- P0*0+0.25 + diag(0.75,dim(P0)) ## iptional: downweight covariances in IC
+#P0 = P0*w 
+
+## Run Kalman Filter
+KF01 = KalmanFilter(M,mu0,P0,Q,R,Y)
+```
+
+Analysis means and confidence intervals:
+
+```{r, fig.asp=1.0}
+attach(KF01)
+nt = length(time)
+
+### plot ANALYSIS mean & CI time-series
+par(mfrow=c(3,1))
+for(i in 1:6){
+  ci = rbind(mu.a[i,]-1.96*sqrt(P.a[i,i,]),mu.a[i,]+1.96*sqrt(P.a[i,i,]))
+  plot(time,mu.a[i,],ylim=range(ci,na.rm=TRUE),type='n',main=states[i])
+  ecoforecastR::ciEnvelope(time,ci[1,],ci[2,],col="lightBlue")
+  lines(time,mu.a[i,],col=4)
+  lines(time,Y[i,])
+}
+```
+
+Of immediate note is that states that have no observations at the start, such as Maine, Vermont and Rhode Island - now have means, which they did not under K00, and
+their confidence intervals are much smaller than without the covariance.
+
+
+Analysis and forecast variances:
+
+```{r, fig.asp=1.0}
+## plot ANALYSIS and FORECAST variance time-series
+par(mfrow=c(3,1))
+for(i in 1:6){
+  plot(time,sqrt(P.a[i,i,]),ylim=c(0,sqrt(max(c(P.a[i,i,],P.f[i,i,])))),main=states[i],xlab="Time",
+       ylab="Std Error",type='l')
+  lines(time,sqrt(P.f[i,i,1:nt]),col=2)
+  points(time[is.na(Y[i,])],rep(0,nt)[is.na(Y[i,])],pch="*",col=3) ## flag's the zero's
+  legend("topright",legend=c("Analysis","Forecast","NAs"),col=1:3,lty=c(1,1,NA),pch=c(NA,NA,1),cex=1.4)
+}
+```
+
+The Standard Error for RI, NH, ME where there's no data at the start is
+reduced - from a max of 0.8 to a max of 0.6.
+
+And Forecast, Analysis, and observed data for Massachusetts
+
+```{r}
+## subset time
+time2 <- time[time>as.Date("2015-01-01")]
+tsel <- which(time %in% time2)
+n = length(time2)*2
+
+## interleave Forecast and Analysis
+mu = p = rep(NA,n)
+mu[seq(1,n,by=2)] = mu.f[1,tsel]
+mu[seq(2,n,by=2)] = mu.a[1,tsel]
+p[seq(1,n,by=2)]  = 1.96*sqrt(P.f[1,1,tsel])
+p[seq(2,n,by=2)]  = 1.96*sqrt(P.a[1,1,tsel])
+ci = cbind(mu-p,mu+p)
+time3 = sort(c(time2,time2+1))
+
+## plot Forecast, Analysis, and data
+plot(time3,mu,ylim=range(ci),type='l')
+ecoforecastR::ciEnvelope(time3,ci[,1],ci[,2],col="lightBlue")
+lines(time3,mu,lwd=2)
+points(time,Y[1,])
+```
+
+The confidence interval looks a bit tighter in this figure. 
+
+The first 5 elements of the confidence interval sequence are:
+```{r}
+ci |> head(5) |> apply(1, \(r) r[[2]] - r[[1]])
+```
+
+These are about 0.01 less than without the full covariance matrix, so
+not that much smaller.
+
+### Task 3
+
 Task 3, KF10 [B]: Rerun with alpha = 0.05 but switch back to the *diagonal* Q matrix (no spatial covariance). Comparing KF10 to KF00, what impact does including a spatial flux in the process model have on the inference?
 
+
+```{r}
+## options for process model 
+#alpha = 0        ## assume no spatial flux
+alpha = 0.05    ## assume a large spatial flux
+M = adj*alpha + diag(1-alpha*apply(adj,1,sum))  ## random walk with flux
+
+## options for process error covariance
+#Q = tau_proc            ## full process error covariance matrix
+Q = diag(diag(tau_proc))        ## diagonal process error matrix
+
+## prior on first step, initialize with long-term mean and covariance
+mu0 = apply(Y,1,mean,na.rm=TRUE)
+P0 = cov(t(Y),use="pairwise.complete.obs")
+#w <- P0*0+0.25 + diag(0.75,dim(P0)) ## iptional: downweight covariances in IC
+#P0 = P0*w 
+
+## Run Kalman Filter
+KF10 = KalmanFilter(M,mu0,P0,Q,R,Y)
+```
+
+Analysis means and confidence intervals:
+
+```{r, fig.asp=1.0}
+attach(KF10)
+nt = length(time)
+
+### plot ANALYSIS mean & CI time-series
+par(mfrow=c(3,1))
+for(i in 1:6){
+  ci = rbind(mu.a[i,]-1.96*sqrt(P.a[i,i,]),mu.a[i,]+1.96*sqrt(P.a[i,i,]))
+  plot(time,mu.a[i,],ylim=range(ci,na.rm=TRUE),type='n',main=states[i])
+  ecoforecastR::ciEnvelope(time,ci[1,],ci[2,],col="lightBlue")
+  lines(time,mu.a[i,],col=4)
+  lines(time,Y[i,])
+}
+```
+
+Including the spatial flux seems to have a very similar effect to inclusion
+of spatial covariance - states without initial observations now have meaningful
+means and variances during those times.The confidence interval is even
+tighter than with the covariance matrix.
+
+Analysis and forecast variances:
+
+```{r, fig.asp=1.0}
+## plot ANALYSIS and FORECAST variance time-series
+par(mfrow=c(3,1))
+for(i in 1:6){
+  plot(time,sqrt(P.a[i,i,]),ylim=c(0,sqrt(max(c(P.a[i,i,],P.f[i,i,])))),main=states[i],xlab="Time",
+       ylab="Std Error",type='l')
+  lines(time,sqrt(P.f[i,i,1:nt]),col=2)
+  points(time[is.na(Y[i,])],rep(0,nt)[is.na(Y[i,])],pch="*",col=3) ## flag's the zero's
+  legend("topright",legend=c("Analysis","Forecast","NAs"),col=1:3,lty=c(1,1,NA),pch=c(NA,NA,1),cex=1.4)
+}
+```
+
+These look very different than either K00 or K01 - in particular, the
+Std. error during the interval where data is not availalbe (e.g. Rhode
+Island before 2005), the Std. Error for both Analysis and Forecast is
+now shaped different - before, it started high, dropped immediately
+to something very low, then grew with sqrt(n) to a high value, then
+dropped again with the first observation.
+
+Now it starts high, drops immediately to an intermediate rather than
+a low value, grows much quicker back to a high value, plateaus, and
+finally drops with the first observation.
+
+And Forecast, Analysis, and observed data for Massachusetts
+
+```{r}
+## subset time
+time2 <- time[time>as.Date("2015-01-01")]
+tsel <- which(time %in% time2)
+n = length(time2)*2
+
+## interleave Forecast and Analysis
+mu = p = rep(NA,n)
+mu[seq(1,n,by=2)] = mu.f[1,tsel]
+mu[seq(2,n,by=2)] = mu.a[1,tsel]
+p[seq(1,n,by=2)]  = 1.96*sqrt(P.f[1,1,tsel])
+p[seq(2,n,by=2)]  = 1.96*sqrt(P.a[1,1,tsel])
+ci = cbind(mu-p,mu+p)
+time3 = sort(c(time2,time2+1))
+
+## plot Forecast, Analysis, and data
+plot(time3,mu,ylim=range(ci),type='l')
+ecoforecastR::ciEnvelope(time3,ci[,1],ci[,2],col="lightBlue")
+lines(time3,mu,lwd=2)
+points(time,Y[1,])
+```
+
+The confidence interval looks a bit tighter in this figure. 
+
+The first 5 elements of the confidence interval sequence are:
+```{r}
+ci |> head(5) |> apply(1, \(r) r[[2]] - r[[1]])
+```
+
+These are about 0.02 less than K00, and 0.01 less than K01.
+
+### Task 4
+
 Task 4, KF11 [A]: Rerun with alpha = 0.05 and the full process error covariance Q matrix. Compare KF11 to the previous runs -- what impact does including both a spatial process and a process error covariance have over their impacts individually.
+
+```{r}
+## options for process model 
+#alpha = 0        ## assume no spatial flux
+alpha = 0.05    ## assume a large spatial flux
+M = adj*alpha + diag(1-alpha*apply(adj,1,sum))  ## random walk with flux
+
+## options for process error covariance
+Q = tau_proc            ## full process error covariance matrix
+#Q = diag(diag(tau_proc))        ## diagonal process error matrix
+
+## prior on first step, initialize with long-term mean and covariance
+mu0 = apply(Y,1,mean,na.rm=TRUE)
+P0 = cov(t(Y),use="pairwise.complete.obs")
+#w <- P0*0+0.25 + diag(0.75,dim(P0)) ## iptional: downweight covariances in IC
+#P0 = P0*w 
+
+## Run Kalman Filter
+KF11 = KalmanFilter(M,mu0,P0,Q,R,Y)
+```
+
+Analysis means and confidence intervals:
+
+```{r, fig.asp=1.0}
+attach(KF11)
+nt = length(time)
+
+### plot ANALYSIS mean & CI time-series
+par(mfrow=c(3,1))
+for(i in 1:6){
+  ci = rbind(mu.a[i,]-1.96*sqrt(P.a[i,i,]),mu.a[i,]+1.96*sqrt(P.a[i,i,]))
+  plot(time,mu.a[i,],ylim=range(ci,na.rm=TRUE),type='n',main=states[i])
+  ecoforecastR::ciEnvelope(time,ci[1,],ci[2,],col="lightBlue")
+  lines(time,mu.a[i,],col=4)
+  lines(time,Y[i,])
+}
+```
+
+Including both the spatial flux and the full covariance matrix makes
+the confidence interval even tighter; it seems like, with both of these,
+the model actually has a lot to work with, despite having no observations
+for the state.
+
+Analysis and forecast variances:
+
+```{r, fig.asp=1.0}
+## plot ANALYSIS and FORECAST variance time-series
+par(mfrow=c(3,1))
+for(i in 1:6){
+  plot(time,sqrt(P.a[i,i,]),ylim=c(0,sqrt(max(c(P.a[i,i,],P.f[i,i,])))),main=states[i],xlab="Time",
+       ylab="Std Error",type='l')
+  lines(time,sqrt(P.f[i,i,1:nt]),col=2)
+  points(time[is.na(Y[i,])],rep(0,nt)[is.na(Y[i,])],pch="*",col=3) ## flag's the zero's
+  legend("topright",legend=c("Analysis","Forecast","NAs"),col=1:3,lty=c(1,1,NA),pch=c(NA,NA,1),cex=1.4)
+}
+```
+
+The std. error is now almost flat at an intermediate value when there
+are no observations for the state; there is still a small dip/ramp
+period, but it stabilizes very quickly.
+
+And Forecast, Analysis, and observed data for Massachusetts
+
+```{r}
+## subset time
+time2 <- time[time>as.Date("2015-01-01")]
+tsel <- which(time %in% time2)
+n = length(time2)*2
+
+## interleave Forecast and Analysis
+mu = p = rep(NA,n)
+mu[seq(1,n,by=2)] = mu.f[1,tsel]
+mu[seq(2,n,by=2)] = mu.a[1,tsel]
+p[seq(1,n,by=2)]  = 1.96*sqrt(P.f[1,1,tsel])
+p[seq(2,n,by=2)]  = 1.96*sqrt(P.a[1,1,tsel])
+ci = cbind(mu-p,mu+p)
+time3 = sort(c(time2,time2+1))
+
+## plot Forecast, Analysis, and data
+plot(time3,mu,ylim=range(ci),type='l')
+ecoforecastR::ciEnvelope(time3,ci[,1],ci[,2],col="lightBlue")
+lines(time3,mu,lwd=2)
+points(time,Y[1,])
+```
+
+The confidence interval look about the same as in K10. 
+
+The first 5 elements of the confidence interval sequence are:
+```{r}
+ci |> head(5) |> apply(1, \(r) r[[2]] - r[[1]])
+```
+
+These are about 0.025 less than K00, 0.015 less than K01, and 0.005
+less than K10. I'm a bit surprised at the small impact.
+
+#### Nik is here
+
+### Task 5
 
 Task 5 [A]: In a true forecasting situation you don't have all the data in hand at once. You also often want to make a forecast that is farther than one time-step into the future. **Write an R function you could run daily** that would:
 
@@ -330,6 +722,8 @@ Task 5 [A]: In a true forecasting situation you don't have all the data in hand 
 You should leverage the existing `KalmanAnalysis` and `KalmanForecast` functions in your new function, and you shouldn't need to change anything in or about those functions.
 
 Note: in a real world situation, where your forecast model has driver/covariate data, you would actually want to first re-run the forecast from yesterday to today with the actual (now observed) driver/covariate data, rather than using your archived forecast (which was done based on your forecasted covariate/driver data), before assimilating today's new observations of your response data.
+
+### Task 6
 
 Task 6 [C: Extra Credit]:
 Using the run with alpha=0.05 and full process error covariance Q, apply your forecast function to make, and visualize, 5 iterative forecasts. Hint: when visualizing, remember that each forecast starts from a different day.
