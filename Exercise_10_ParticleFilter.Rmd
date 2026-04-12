@@ -910,6 +910,42 @@ legend("topleft",legend = c("ensemble", "pr, ne=50", "pr, ne=5000"), col=col.pf,
 **Question 2**: After 17-days, how different are the simulations with
 and without particle resampling?
 
+> Let's look at some numbers. Let's look at how different are the means,
+> and how different are the sizes of the CIs.
+>
+> For this exercise, I'll only look at the 50 member ensembles, since I
+> have data for those.
+>
+> Forecast without resampling:
+
+```{r}
+plot_forecast(output)
+```
+
+> Forecast with resampling:
+
+```{r}
+plot_forecast(out5000)
+```
+
+> Overall, the forecasts *with* resampling are much smoother, with
+> smoother confidence intervals.
+>
+> Bleaf: 2.2 vs 2.0, `r 2.8-1.6` vs. `r 3.0-1.0`. Resampling mean is
+> slightly lower, CI slightly wider.
+>
+> Bwood: 160 vs 160, `r 165 - 155` vs `r 175 - 145`. Resampling mean is
+> the same, CI slightly wider.
+>
+> BSOM: 26 vs 27, `r 35 - 15` vs `r 40 - 14`. Resampling mean is
+> slightly higher, CI slightly wider.
+>
+> LAI: 1.8 vs 1.5, `r 2.4-1.3` vs `r 2.5 - 0.8` . Resampling mean is
+> slightly lower, CI slightly wider.
+>
+> The diurnal variables - GPP, NEP, etc. - look very similar, but with
+> slightly (single-digit %) lower means.
+
 **Question 3**: With the particles at 500, increase the length of the
 simulation from 17 days to 365 days. Do the results match your
 expectations?
