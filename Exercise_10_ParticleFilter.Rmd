@@ -1,6 +1,8 @@
 ---
 title: "Particle Filter"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r}
@@ -250,9 +252,9 @@ For litterfall, since this needs to be expressed as a proportion of
 leaves lost, this is based on comparing the variability in the observed
 annual litterfall rate to the observed leaf biomass. For mortality this
 is done based on the mean background tree mortality rate for temperate
-forests reported in Dietze et al (2011) (1/142) and assuming a CV of
+forests reported in Dietze et al. (2011) (1/142) and assuming a CV of
 50%. The latter could be much improved with species and system specific
-data. The approach for the litterfall rate could also be improvedwith
+data. The approach for the litterfall rate could also be improved with
 additional data and accounting for the sampling uncertainty in both the
 numerator and denominator.
 
@@ -397,7 +399,7 @@ plot_forecast <- function(out,sample=FALSE){
 ## Initial forecast
 
 Now we're ready to produce our initial ensemble forecast for the system.
-To do this we'll set up some storage and loop over time where we calling
+To do this we'll set up some storage and loop over time where we call
 the model each time step. After this we'll generate some basic
 diagnostic plots for the model.
 
@@ -427,7 +429,7 @@ Next, let's load and clean the MODIS LAI data. The following is
 necessary to understand the data.
 
 -   Each row is a different variable at a different time. The key
-    variables are LAI estimate, QC code, and standard devivation on the
+    variables are LAI estimate, QC code, and standard deviation on the
     LAI estimate.
 -   The date for each row variable is embedded in the file name in
     column 1
@@ -565,8 +567,8 @@ legend("topleft", legend = names.pf[1:2], col = col.pf[1:2], lwd = 5)
 
 ### Resampling Particle Filter
 
-Before we move on to the resampling particle filter, we need to define
-an number of ancillary functions: `update.params`, that will help us
+Before we move on to the resampling particle filter, we need to define a
+number of ancillary functions: `update.params`, that will help us
 re-assign the parameter values to different ensemble members when we
 resample from the ensemble members; and `smooth.params` which applies a
 kernel smoother to the multivariate parameter space.
@@ -787,6 +789,109 @@ for(i in 1:length(params)){      ## loop over parameters
 change your results?
 
 > If you can do more than 500, do so!
+>
+> 1.a. Set up parameters for an ensemble of 500.
+
+```{r}
+ne <- 500
+X500 <- as.matrix(cbind(
+      rnorm(ne, X.orig[1], sd(Bleaf)),
+      rnorm(ne, X.orig[2], sd(Bwood)),
+      rnorm(ne, X.orig[3], sd(SOM))))
+params500 <- list()
+params500$SLA <- rnorm(ne, mean(SLA), sd(SLA))
+params500$alpha <- rlnorm(ne, log(0.02), 0.05)
+params500$Q10 <- rnorm(ne, 2.1, 0.1)
+params500$Rbasal <- rlnorm(ne, log(0.2), 1) / (params$Q10^2.5)
+Neff500 <- matrix(rpois(ne, 100), ne)
+params500$falloc <- rdirichlet(ne,Neff500%*%alloc)
+params500$sigma.leaf <- 1 / sqrt(rgamma(ne, 10, 10 * 0.01 ^ 2))
+params500$sigma.stem <- 1 / sqrt(rgamma(ne, 10, 10 * 0.1 ^ 2))
+params500$sigma.soil <- 1 / sqrt(rgamma(ne, 10, 10 * 0.1 ^ 2))
+lit500 <- rnorm(10000,mean(litterfall),sd(litterfall)/sqrt(2))/
+  rnorm(10000,mean(Bleaf),sd(Bleaf)/sqrt(2))
+lit500.mu = rnorm(ne,mean(lit),sd(lit))*timestep/86400/365
+lit500.sd = 1/sqrt(rgamma(ne,10,10*var(lit)))*timestep/86400/365
+lit500.param = beta.match(lit500.mu,lit500.sd^2)
+params500$litterfall = rbeta(ne,lit500.param$a,lit500.param$b)
+
+mort500.mu = 1/rpois(ne,142)*timestep/86400/365
+mort500.sd = rbeta(ne,4,4)*mort500.mu*timestep/86400/365
+mort500.param = beta.match(mort500.mu,mort500.sd^2)
+params500$mortality = rbeta(ne,mort500.param$a,mort500.param$b)
+X500.orig <- X500
+```
+
+> 1.b. Initial Forecast
+>
+> Did I construct params500 in a sane way?
+
+```{r}
+out500.ensemble <- ensemble_forecast(X500.orig, params500, inputs[1:nt, ])
+out500.daily <- array(0.0, c(ceiling(nt/bin), ne, 12))
+for (i in 1:12) {
+  out500.daily[,,i] <- apply(out500.ensemble[,,i],2, tapply, rep(1:365,each=bin)[1:nt], mean)
+}
+plot_forecast(out500.daily)
+
+```
+
+> Initial forecast looks OK - params500 seems sane.
+>
+> 1.c. Resampling Particle Filter
+
+```{r}
+X500 <- X500.orig
+Analysis <- list()
+wt <- rep(1, ne)
+out500 <- array(0.0, c(nt, ne, 12))
+sample <- 1
+for (t in 1:nt) {
+  out500[t, , ] <- SSEM(X, params500, inputs[t, ])
+  X <- out500[t, , 1:3]
+  if (t %% (48 * 8) == 0) {
+    print(sample)
+    if (!is.na(LAIr[sample])) {
+      Analysis[[sample]] <- ParticleFilter(
+        out500[t, , ],
+        params500,
+        data.frame(
+          LAI = LAIr[sample],
+          sigma = LAIr.sd[sample]
+        ),
+        wt
+      )
+      X <- Analysis[[sample]]$X
+      params500 <- Analysis[[sample]]$params
+      wt <- Analysis[[sample]]$wt
+    }
+    sample <- sample + 1
+  }
+}
+
+```
+
+> 1.d. Compare 500-member resampling particle filter to 50-member
+
+```{r}
+LAIpr500 = t(apply(out500[, , 4], 2, tapply, window, mean))
+LAIpr500.ci = apply(LAIpr500, 2, quantile, c(0.025,0.5,0.975))
+plot(Mtime[Msel], LAIm.ci[2, ], 
+     ylim = range(c(range(LAIm.ci), range(LAIr, na.rm = TRUE))),
+     type='n', ylab = "LAI", xlab = "Time")
+ciEnvelope(Mtime[Msel], LAIm.ci[1, ], LAIm.ci[3, ], col=col.pf[1])
+ciEnvelope(Mtime[Msel], LAIpr.ci[1, ], LAIpr.ci[3, ], col = col.pf[2])
+ciEnvelope(Mtime[Msel], LAIpr500.ci[1, ], LAIpr500.ci[3, ], col = col.pf[3])
+points(Mtime, LAIr)
+for(i in 1:length(LAIr)){
+  if(!is.na(QC[i])){
+    lines(rep(Mtime[i], 2), LAIr[i] + c(-1, 1) * LAIr.sd[i])
+  }
+}
+legend("topleft",legend = c("ensemble", "pr, ne=50", "pr, ne=500"), col=col.pf, lwd=5)
+```
+
+> So, Increasing the ensemble size increases the confidence interval.
 
 **Question 2**: After 17-days, how different are the simulations with
 and without particle resampling?
