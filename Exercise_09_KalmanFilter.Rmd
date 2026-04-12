@@ -1,3 +1,8 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 Kalman Filter
 ========================================================
 
@@ -160,7 +165,7 @@ KalmanFilter <- function(M,mu0,P0,Q,R,Y){
 ##' Kalman Filter: Analysis step
 ##' @param  mu.f = Forecast mean (vector)
 ##' @param  P.f  = Forecast covariance (matrix)
-##' @param  Y    = observations, with missing values as NAs) (vector)
+##' @param  Y    = observations, with missing values as NAs (vector)
 ##' @param  R    = observation error covariance (matrix)
 ##' @param  H    = observation matrix (maps observations to states)
 KalmanAnalysis <- function(mu.f,P.f,Y,R,H,I){
@@ -228,7 +233,7 @@ R = diag(tau_obs,nstates)
 ## prior on first step, initialize with long-term mean and covariance
 mu0 = apply(Y,1,mean,na.rm=TRUE)
 P0 = cov(t(Y),use="pairwise.complete.obs")
-#w <- P0*0+0.25 + diag(0.75,dim(P0)) ## iptional: downweight covariances in IC
+#w <- P0*0+0.25 + diag(0.75,dim(P0)) ## optional: downweight covariances in IC
 #P0 = P0*w 
 
 ## Run Kalman Filter
@@ -688,31 +693,9 @@ ci |> head(5) |> apply(1, \(r) r[[2]] - r[[1]])
 These are about 0.025 less than K00, 0.015 less than K01, and 0.005
 less than K10. I'm a bit surprised at the small impact.
 
-#### Nik is here
-
 ### Task 5
 
 Task 5 [A]: In a true forecasting situation you don't have all the data in hand at once. You also often want to make a forecast that is farther than one time-step into the future. **Write an R function you could run daily** that would:
-
-> In-class notes:
->
-> This one requires some thinking
-> 
-> See photo for what the figure should look like
->
-> Before forecasting forward, you may want to re-forecast the most
-> recent timestep *if* e.g. there's new exogenous information available
-> (e.g. if a weather forecast can be replaced with weather obesrvation)
-> 
-> KamlanFilter function does a reanalyis - wouldn't do this unless you
-> have new data
-> 
-> Nik's q: re uncertainty in forecast covariates - you could do this,
-> but not for any assignment in this class.
->
-> Cammy & Katherine are managing the data feeds for these projects
-> 
-> Urban hasn't updated in months, we don't know why
 
 * Take the previous forecast and the new data (for just that day) as inputs (plus any other parameters you may need)
 * Assimilates the new data
@@ -722,6 +705,77 @@ Task 5 [A]: In a true forecasting situation you don't have all the data in hand 
 You should leverage the existing `KalmanAnalysis` and `KalmanForecast` functions in your new function, and you shouldn't need to change anything in or about those functions.
 
 Note: in a real world situation, where your forecast model has driver/covariate data, you would actually want to first re-run the forecast from yesterday to today with the actual (now observed) driver/covariate data, rather than using your archived forecast (which was done based on your forecasted covariate/driver data), before assimilating today's new observations of your response data.
+
+> Lecture09_DA1.2024.pdf
+>
+> How to balance observation error with forecast error?
+> r = observation error (sd)
+> pf = forecast error (sd)
+> rho = 1/r (observation precision)
+> phi = 1/pf (forecast precision)
+>
+> X|Y ~ N((rho / (n*rho+phi))*nYbar + (phi/(n*rho+phi)muf, n*rho + phi))
+>
+> Slide 15 breaks this into analysis step and forecast step, which we
+> already have.
+> 
+> Looking at function KalmanAnalysis, it's already doing this from 
+> mu.f and P.f, with Y.
+>
+> KalmanAnalsysis takes (mu.f, P.f, Y, R, H, I) -
+> mu.f we have
+> P.f we have
+> Y - I think we're passing in just the one observation, 1/y
+> R Not updated, so we have it
+> Q not updated, so we have it
+> H = I, so we have it
+> I = diag(nstates), so we have it
+
+
+```{r}
+##'  Kalman OneStep
+##' @param  M   = model matrix
+##' @param  mu  = previous forecast mean vector
+##' @param  P   = previous forecast covariance matrix
+##' @param  Q   = process error covariance matrix
+##' @param  R   = observation error covariance matrix
+##' @param  y   = observation vector, one for each state
+##'
+##' @return list
+##'  mu  = state mean vector
+##'  P   = state covariance matrix
+KalmanOneStep <- function(
+  M, mu, P, Q, R, y
+) {
+  ## Create Y from y; this way we don't
+  ## have to worry about R being weird about
+  ## matrix vs. vector
+  Y <- matrix(NA, length(y), 17)
+  Y[, 1] <- y
+
+  ## storage
+  nstates = nrow(Y)  
+  mu.out  = matrix(NA,nstates,nt)  ## output mean for time t
+  P.out  = array(NA,c(nstates,nstates,nt))  ## output variance for time t
+
+  I = diag(1,nstates)
+
+  ## Analysis step
+  KA <- KalmanAnalysis(mu[,1],P[,,1],Y[, 1],R,H=I,I)
+  mu.out[,1] <- KA$mu.a
+  P.out[,,1] <- KA$P.a
+
+  ## run forecast sequentially for each timestep
+  for (t in 1:16){
+    KF <- KalmanForecast(mu.out[,t],P.out[,,t],M,Q)
+    mu.out[,t+1] <- KF$mu.f
+    P.out[,,t+1] <- KF$P.f
+  }
+
+  return(list(mu=mu.out, P=P.out))
+}
+```
+
 
 ### Task 6
 
