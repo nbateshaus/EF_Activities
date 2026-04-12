@@ -8,51 +8,58 @@ library(iotools)
 library(ecoforecastR)
 ```
 
-This exercise explores the use of the particle filter to constrain a simple 
-ecosystem model for the Metolius Ameriflux sites in Oregon. Specifically, we'll 
-be looking at the Metolius Intermediate Pine site (US-ME2) 
-http://ameriflux.lbl.gov/sites/siteinfo/US-Me2 and assimilating a derived MODIS 
-data product, LAI, into a super simple ecosystem model. In the code below we will perform three analyses:
+This exercise explores the use of the particle filter to constrain a
+simple ecosystem model for the Metolius Ameriflux sites in Oregon.
+Specifically, we'll be looking at the Metolius Intermediate Pine site
+(US-ME2) <http://ameriflux.lbl.gov/sites/siteinfo/US-Me2> and
+assimilating a derived MODIS data product, LAI, into a super simple
+ecosystem model. In the code below we will perform three analyses:
 
-1) Run an ensemble forecast for one year
-2) Use a particle filter to analyse the existing ensemble based on MODIS LAI
-3) Rerun the LAI assimilation with a resampling PF
+1)  Run an ensemble forecast for one year
+2)  Use a particle filter to analyse the existing ensemble based on
+    MODIS LAI
+3)  Rerun the LAI assimilation with a resampling PF
 
-The code below is longer than most activities, but this is not due to the 
-complexity of the PF itself. Rather, we will spend a decent amount of code on 
-defining the model, defining the initial conditions, and defining the prior 
-distributions for the model parameters. 
+The code below is longer than most activities, but this is not due to
+the complexity of the PF itself. Rather, we will spend a decent amount
+of code on defining the model, defining the initial conditions, and
+defining the prior distributions for the model parameters.
 
-The initial code is set up to run with a small ensemble size (ne=10) and short 
-time (17-days, nt = 816 30-minute time-steps) to allow you to be able to "Knit" 
-this document. 
+The initial code is set up to run with a small ensemble size (ne=10) and
+short time (17-days, nt = 816 30-minute time-steps) to allow you to be
+able to "Knit" this document.
 
-**The final run should be conducted with a decently large ensemble (500-5000 
-depending on what your computer can handle) and be for the full year 
-`nt = length(time)`. Since this requires large simulation, if you are doing this 
-activity for a class turn in the final HTML, not the Rmd, and feel free to 
-answer questions separately (e.g. in another doc) so you don't have to 
-run a second time to include your answers.** 
+**The final run should be conducted with a decently large ensemble
+(500-5000 depending on what your computer can handle) and be for the
+full year `nt = length(time)`. Since this requires large simulation, if
+you are doing this activity for a class turn in the final HTML, not the
+Rmd, and feel free to answer questions separately (e.g. in another doc)
+so you don't have to run a second time to include your answers.**
 
-Alternatively, you could change the output type to `html_notebook` and run the 
-analysis block-by-block.
+Alternatively, you could change the output type to `html_notebook` and
+run the analysis block-by-block.
 
 ### Super Simple Ecosystem Model
 
-Let's begin by defining our model itself, as well as a number of ancillary 
-functions that will be useful in simulation and analysis. The model below is 
-very simple but is complex enough to have some chance at capturing observed 
-variability. In addition, unlike most ecosystem models, it explicitly contains 
-process error. The model has three state variables (X) that are all expressed in
-terms of carbon (Mg/ha): Leaf Biomass, Structural Biomass (wood, roots, etc),
-and soil organic matter (SOM). The model also has only two drivers: 
-photosynthetically active radiation (PAR), and air temperature. Within the model we first 
-estimate LAI from Leaf Biomass and SLA. Using LAI and light we estimate GPP 
-using a simple light use efficiency approach. GPP is then allocated to 
-autotrophic respiration (Ra), leaf NPP, and woody NPP. These leaf and wood 
-biomass pools can then turns over into SOM as litterfall and Coarse Woody Debris / mortality. 
-Heterotrophic respiration is assumed to follow a standard Q10 temperature 
-sensitivity. Finally, Normal process error is added to X.
+Let's begin by defining our model itself, as well as a number of
+ancillary functions that will be useful in simulation and analysis. The
+model below is very simple but is complex enough to have some chance at
+capturing observed variability. In addition, unlike most ecosystem
+models, it explicitly contains process error. The model has three state
+variables (X) that are all expressed in terms of carbon (Mg/ha): Leaf
+Biomass, Structural Biomass (wood, roots, etc), and soil organic matter
+(SOM). The model also has only two drivers: photosynthetically active
+radiation (PAR), and air temperature. Within the model we first estimate
+LAI from Leaf Biomass and SLA. Using LAI and light we estimate GPP using
+a simple light use efficiency approach. GPP is then allocated to
+autotrophic respiration (Ra), leaf NPP, and woody NPP. These leaf and
+wood biomass pools can then turns over into SOM as litterfall and Coarse
+Woody Debris / mortality. Heterotrophic respiration is assumed to follow
+a standard Q10 temperature sensitivity. Finally, Normal process error is
+added to X.
+
+> In-class notes: alpha = light use efficiency Ra - autotrophic
+> respiration = alloc[, 1] Rh - heterotrophic respiration = alloc[, 2]
 
 ```{r}
 library(compiler)
@@ -100,26 +107,26 @@ SSEM <- cmpfun(SSEM.orig)  ## byte compile the function to make it faster
 
 ### Initial Conditions
 
-Having defined our model, the next step is to define the ensemble size and 
-generate an ensemble estimate of the initial state variables. To do so we'll use
-the estimates that are reported in the Ameriflux BADM Meta-data files for the 
-site. Since we're only relying on two different estimates of pool size to 
-calculate our mean and standard deviation, and neither estimate has a reported 
-error, these should be taken as "demonstration only" rather than as 
-"Best practices". In a real application one would want to account for the 
-sampling error associated with the number of vegetation plots or soil cores 
-measured, the measurement error in the soil C and tree DBH, and the allometric 
-uncertainty in converting from DBH to leaf and stem biomass. In other words, our
-pool sizes are likely a lot less certain than what we take them to be in this 
-exercise.
+Having defined our model, the next step is to define the ensemble size
+and generate an ensemble estimate of the initial state variables. To do
+so we'll use the estimates that are reported in the Ameriflux BADM
+Meta-data files for the site. Since we're only relying on two different
+estimates of pool size to calculate our mean and standard deviation, and
+neither estimate has a reported error, these should be taken as
+"demonstration only" rather than as "Best practices". In a real
+application one would want to account for the sampling error associated
+with the number of vegetation plots or soil cores measured, the
+measurement error in the soil C and tree DBH, and the allometric
+uncertainty in converting from DBH to leaf and stem biomass. In other
+words, our pool sizes are likely a lot less certain than what we take
+them to be in this exercise.
 
-There are a few assumptions in developing the initial conditions
-- The mean and standard deviation are only calculated using two observations. 
-  As stated above, this is not best practice.
-- The wood state is the combination of stems, coarse roots, and fine roots
-- The SOM (soil) state is the combination of litter, downed coarse woody debris,
-  and soil.
-- All values are converted from g/m2 to Mg/ha
+There are a few assumptions in developing the initial conditions - The
+mean and standard deviation are only calculated using two observations.
+As stated above, this is not best practice. - The wood state is the
+combination of stems, coarse roots, and fine roots - The SOM (soil)
+state is the combination of litter, downed coarse woody debris, and
+soil. - All values are converted from g/m2 to Mg/ha
 
 ```{r}
 #### SET THE ENSEMBLE SIZE
@@ -149,16 +156,17 @@ for(i in 1:3){
 
 ### Parameter Priors
 
-Having defined the initial condition state vector, we'll next define the priors 
-on the model parameters. Unlike in JAGS, where we define the priors in terms of 
-named distributions, for a particle filter we want to actually 
-**draw random samples from those prior distributions**. 
+Having defined the initial condition state vector, we'll next define the
+priors on the model parameters. Unlike in JAGS, where we define the
+priors in terms of named distributions, for a particle filter we want to
+actually **draw random samples from those prior distributions**.
 
-For two parameters, SLA and litterfall, there are estimates reported in the 
-Ameriflux BADM as well. Therefore, the prior on SLA was set from data, but the 
-priors on light use efficiency (alpha), Q10, soil basal respiration, and the 
-process uncertainties in GPP and Rh were set just based on my expert opinion -- 
-all these could be informed better by literature data (e.g. PEcAn's meta-analysis).
+For two parameters, SLA and litterfall, there are estimates reported in
+the Ameriflux BADM as well. Therefore, the prior on SLA was set from
+data, but the priors on light use efficiency (alpha), Q10, soil basal
+respiration, and the process uncertainties in GPP and Rh were set just
+based on my expert opinion -- all these could be informed better by
+literature data (e.g. PEcAn's meta-analysis).
 
 ```{r}
 ## ancillary data from Ameriflux BADM metadata
@@ -176,22 +184,25 @@ params$Q10 = rnorm(ne, 2.1, 0.1)               ## soil respiration Q10
 params$Rbasal = rlnorm(ne, log(0.2), 1) / (params$Q10^2.5) ## Soil basal respiration (umol/m2/sec per Mg/ha of SOM)
 ```
 
-For the allocation parameters, we can't assume they are dependent as we assume
-for the other parameters because the three allocation parameter have to sum to 
-1.  Therefore if leaf NPP is high, wood NPP, and Ra must be lower.  This requires
-a bit more calculation to solve. First, we'll assume that on average that NPP is ~50% of 
-GPP (e.g. Litton et al 2007), and that leaf NPP is 31.5% of total NPP (which is 
-the default allocation fraction used by Quaife et al 2008 for DALEC for this site).
+For the allocation parameters, we can't assume they are dependent as we
+assume for the other parameters because the three allocation parameter
+have to sum to 1. Therefore if leaf NPP is high, wood NPP, and Ra must
+be lower. This requires a bit more calculation to solve. First, we'll
+assume that on average that NPP is \~50% of GPP (e.g. Litton et al
+2007), and that leaf NPP is 31.5% of total NPP (which is the default
+allocation fraction used by Quaife et al 2008 for DALEC for this site).
 
-To account for uncertainty we'll scale these fractions by an "effective sample 
-size" (`Neff`) in order to specify how many observations these represent -- for 
-example, if `Neff` was 10 then the variability in the allocation to NPP vs Ra would 
-be the equivalent to the uncertainty associated with observing 5 coin flips come 
-up "NPP" and 5 come up "Ra". To assign different ensemble members different 
-levels of process error we draw `Neff` from a Poisson distribution. Again, this is
-an underestimate and a better practice would be to derive the priors for these 
-fractions from data and to account for the fact that the mean proportions should
-vary from ensemble member to ensemble members as well as the certainty. 
+To account for uncertainty we'll scale these fractions by an "effective
+sample size" (`Neff`) in order to specify how many observations these
+represent -- for example, if `Neff` was 10 then the variability in the
+allocation to NPP vs Ra would be the equivalent to the uncertainty
+associated with observing 5 coin flips come up "NPP" and 5 come up "Ra".
+To assign different ensemble members different levels of process error
+we draw `Neff` from a Poisson distribution. Again, this is an
+underestimate and a better practice would be to derive the priors for
+these fractions from data and to account for the fact that the mean
+proportions should vary from ensemble member to ensemble members as well
+as the certainty.
 
 ```{r}
 ## reimplimentation of the rdirichlet function from MCMCpack
@@ -217,8 +228,8 @@ Neff = matrix(rpois(ne, 100), ne)
 params$falloc = rdirichlet(ne,Neff%*%alloc)  
 ```
 
-For the process error we're setting Gamma priors on the *precisions* and then 
-converting those to standard deviations. 
+For the process error we're setting Gamma priors on the *precisions* and
+then converting those to standard deviations.
 
 ```{r}
 ## Process error: expert opinion
@@ -231,18 +242,19 @@ params$sigma.stem = 1 / sqrt(rgamma(ne, 10, 10 * 0.1 ^ 2))
 params$sigma.soil = 1 / sqrt(rgamma(ne, 10, 10 * 0.1 ^ 2)) 
 ```
 
-Finally, the prior for both litterfall and mortality are set based on 
-**moment matching** -- deriving the parameters for the Beta that match a 
-specified mean and variance. 
+Finally, the prior for both litterfall and mortality are set based on
+**moment matching** -- deriving the parameters for the Beta that match a
+specified mean and variance.
 
-For litterfall, since this needs to be expressed as a proportion of leaves lost, 
-this is based on comparing the variability in the observed annual litterfall 
-rate to the observed leaf biomass. For mortality this is done based on the mean 
-background tree mortality rate for temperate forests reported in Dietze et al (2011)
-(1/142) and assuming a CV of 50%. The latter could be much improved with species
-and system specific data. The approach for the litterfall rate could also be 
-improvedwith additional data and accounting for the sampling uncertainty in both
-the numerator and denominator.
+For litterfall, since this needs to be expressed as a proportion of
+leaves lost, this is based on comparing the variability in the observed
+annual litterfall rate to the observed leaf biomass. For mortality this
+is done based on the mean background tree mortality rate for temperate
+forests reported in Dietze et al (2011) (1/142) and assuming a CV of
+50%. The latter could be much improved with species and system specific
+data. The approach for the litterfall rate could also be improvedwith
+additional data and accounting for the sampling uncertainty in both the
+numerator and denominator.
 
 ```{r}
 ## moment matching beta prior on turnover times
@@ -274,9 +286,10 @@ params$mortality = rbeta(ne,mortality.param$a,mortality.param$b)
 
 ### Drivers
 
-Next, we need to load the observed meteorology from the flux tower to provide our
-input drivers. The data are for a full year (2 per hour * 24 hours * 365 days).
-For simplicity, we won't worry about the uncertainty in the met data.
+Next, we need to load the observed meteorology from the flux tower to
+provide our input drivers. The data are for a full year (2 per hour \*
+24 hours \* 365 days). For simplicity, we won't worry about the
+uncertainty in the met data.
 
 ```{r}
 ## load met data
@@ -284,11 +297,14 @@ load("data/Lab10_inputs.RData")
 plot(inputs$PAR,type='l')
 plot(inputs$temp,type='l')
 ```
+
 ## Ensemble Forecast and Particle Filter functions
 
-Similar to Exercise 09, to help with making our iterative forecasts, let's define functions that perform the Forecast and Analysis steps
+Similar to Exercise 09, to help with making our iterative forecasts,
+let's define functions that perform the Forecast and Analysis steps
 
 ### Forecast Step
+
 ```{r}
 ##` @param X       Initial Conditions [leaf carbon, wood carbon, soil organic carbon] (units=Mg/ha)
 ##` @param params   model parameters
@@ -316,6 +332,7 @@ ensemble_forecast <- function(X,params,inputs){
 ```
 
 ### Output visualization helper functions
+
 ```{r}
 ######   VISUALIZATION  #########
 
@@ -377,13 +394,14 @@ plot_forecast <- function(out,sample=FALSE){
 }
 ```
 
-
-
 ## Initial forecast
 
-Now we're ready to produce our initial ensemble forecast for the system. To do 
-this we'll set up some storage and loop over time where we calling the model each time 
-step. After this we'll generate some basic diagnostic plots for the model.
+Now we're ready to produce our initial ensemble forecast for the system.
+To do this we'll set up some storage and loop over time where we calling
+the model each time step. After this we'll generate some basic
+diagnostic plots for the model.
+
+> In-class notes: X.orig is a matrix across space and time
 
 ```{r}
 X = X.orig                             ## initial condition
@@ -405,14 +423,16 @@ plot_forecast(out.daily)
 
 ### MODEL VALIDATION: MODIS LAI
 
-Next, let's load and clean the MODIS LAI data.  The following is necessary to
-understand the data.
+Next, let's load and clean the MODIS LAI data. The following is
+necessary to understand the data.
 
-- Each row is a different variable at a different time.  The key variables are
-  LAI estimate, QC code, and standard devivation on the LAI estimate.
-- The date for each row variable is embedded in the file name in column 1
-- The value for each variable is in column 10
-- Each LAI estimate is an 8-day average.
+-   Each row is a different variable at a different time. The key
+    variables are LAI estimate, QC code, and standard devivation on the
+    LAI estimate.
+-   The date for each row variable is embedded in the file name in
+    column 1
+-   The value for each variable is in column 10
+-   Each LAI estimate is an 8-day average.
 
 ```{r}
 ## open MODIS data and extract remotely-sensed LAI (LAIr), 
@@ -439,22 +459,25 @@ QC = QC[yr]
 Mtime = Mtime[yr]
 ```
 
-Plot a time-series of LAI and the relationship between the MODIS-LAI and its 
-standard deviation. Remember that this is an evergreen forest, so we're not expecting much true variability or seasonality in LAI.
+Plot a time-series of LAI and the relationship between the MODIS-LAI and
+its standard deviation. Remember that this is an evergreen forest, so
+we're not expecting much true variability or seasonality in LAI.
 
 ```{r}
 plot(Mtime,LAIr,type = 'o') 
 plot(LAIr, LAIr.sd)
 ```
 
-Remember that the model output is at the 30-minute time-step but the 
-MODIS LAI is an 8-day average.  To be able to compare model to data, let's 
-calculate the time-averaged LAI from the model for the same periods as MODIS. 
+Remember that the model output is at the 30-minute time-step but the
+MODIS LAI is an 8-day average. To be able to compare model to data,
+let's calculate the time-averaged LAI from the model for the same
+periods as MODIS.
 
-In the 17-day period, there could be three MODIS LAI values but the first two do
-not pass the QC test so they are not used.  Therefore, only the MODIS LAI 
-estimate for the end of the 17-day period is shown in the plot below.
-Once you increase the length of the model run, more observations will show up.
+In the 17-day period, there could be three MODIS LAI values but the
+first two do not pass the QC test so they are not used. Therefore, only
+the MODIS LAI estimate for the end of the 17-day period is shown in the
+plot below. Once you increase the length of the model run, more
+observations will show up.
 
 ```{r}
 ## Calculate model ensemble means for same periods
@@ -477,13 +500,16 @@ for(i in 1:length(LAIr)){
 
 ### Non-resampling Particle Filter
 
-Given this ensemble we can next apply a **non-resampling particle filter** to 
-this existing ensemble forecast by calculating the cumulative likelihood of the 
-observations for each ensemble member. Note that in the code below LAIm is the 
-model (initial ensemble), LAIpf is the non-resampling particle filter, and LAIr
-is the remotely sensed observations.
+Given this ensemble we can next apply a **non-resampling particle
+filter** to this existing ensemble forecast by calculating the
+cumulative likelihood of the observations for each ensemble member. Note
+that in the code below LAIm is the model (initial ensemble), LAIpf is
+the non-resampling particle filter, and LAIr is the remotely sensed
+observations.
 
 First, calculate the likelihood of each ensemble member
+
+> In-Class notes: log = TRUE - we're computing log-likelihood
 
 ```{r}
 ## calculate the cumulative likelihoods
@@ -504,8 +530,8 @@ Neff.non = apply(LAIlike,2,function(x){
 plot(Neff.non,type='l')
 ```
 
-Plot the forecast using the weights from LAIlike.  This code calculates the
-weighted quantile using the `wtd.quantile() function`.
+Plot the forecast using the weights from LAIlike. This code calculates
+the weighted quantile using the `wtd.quantile() function`.
 
 ```{r}
 ## Non-resampling Particle Filter
@@ -539,9 +565,13 @@ legend("topleft", legend = names.pf[1:2], col = col.pf[1:2], lwd = 5)
 
 ### Resampling Particle Filter
 
-Before we move on to the resampling particle filter, we need to define an number of 
-ancillary functions: `update.params`, that will help us re-assign the parameter 
-values to different ensemble members when we resample from the ensemble members; and `smooth.params` which applies a kernel smoother to the multivariate parameter space.
+Before we move on to the resampling particle filter, we need to define
+an number of ancillary functions: `update.params`, that will help us
+re-assign the parameter values to different ensemble members when we
+resample from the ensemble members; and `smooth.params` which applies a
+kernel smoother to the multivariate parameter space.
+
+> In-Class notes: h = smoothing parameter, as described in lecture
 
 ```{r}
 update.params <- function(params, index){
@@ -626,12 +656,12 @@ ParticleFilter <- function(out,params,dat,wt=1){
 }
 ```
 
-
-Finally, let's implement the resampling particle filter. The code for this is 
-organized in a way similar to the Kalman Filter activity -- we loop over time 
-and alternate between a forecast step and an analysis step. Since the 
-observations only occur every 8 days, we only repeat the analysis step every 
-8 days (which for a 30 min timestep is every 48*8 timesteps).
+Finally, let's implement the resampling particle filter. The code for
+this is organized in a way similar to the Kalman Filter activity -- we
+loop over time and alternate between a forecast step and an analysis
+step. Since the observations only occur every 8 days, we only repeat the
+analysis step every 8 days (which for a 30 min timestep is every 48\*8
+timesteps).
 
 ```{r}
 hist.params = list()             ## since we resample parameters, create a record (history) of what values were used at each step
@@ -672,8 +702,8 @@ for(t in 1:nt){
 #save(output,output.ensemble,LAIlike,hist.params,inputs,file="Ex10.output.RData") 
 ```
 
-Next, let's compare the resampling particle filter to the ensemble and the 
-non-resampling PF.
+Next, let's compare the resampling particle filter to the ensemble and
+the non-resampling PF.
 
 ```{r}
 ## Extract and summarize LAI (pr = PF, resampling)
@@ -696,16 +726,18 @@ for(i in 1:length(LAIr)){
 legend("topleft",legend = names.pf, col=col.pf, lwd=5)
 ```
 
-Finally, the resampling PF also updates the parameter distributions, so let's 
-plot the posterior parameter distributions. In doing so it is important to 
-remember that the technique we used does not introduce new parameter draws into 
-the ensemble, so it is possible for the parameter distributions to become 
-degenerate, placing too much weight on a small number of parameter combinations. 
-More advanced methods exist for proposing new parameter values but they're 
-beyond the scope of this primer.
+Finally, the resampling PF also updates the parameter distributions, so
+let's plot the posterior parameter distributions. In doing so it is
+important to remember that the technique we used does not introduce new
+parameter draws into the ensemble, so it is possible for the parameter
+distributions to become degenerate, placing too much weight on a small
+number of parameter combinations. More advanced methods exist for
+proposing new parameter values but they're beyond the scope of this
+primer.
 
-Note, the **digits on the posterior and prior plots are the mean and standard deviation** for the 
-prior (top row, black line), and the posterior (second row, red line)
+Note, the **digits on the posterior and prior plots are the mean and
+standard deviation** for the prior (top row, black line), and the
+posterior (second row, red line)
 
 ```{r, echo=FALSE, fig.asp=1}
 ### assess shifts in any parameter values
@@ -751,57 +783,69 @@ for(i in 1:length(params)){      ## loop over parameters
 
 ## Exercises
 
-**Question 1**: Increase the number of particles to 500.  How does this change your results?
+**Question 1**: Increase the number of particles to 500. How does this
+change your results?
 
-**Question 2**: After 17-days, how different are the simulations with and without particle resampling?
+> If you can do more than 500, do so!
 
-**Question 3**: With the particles at 500, increase the length of the simulation from 17 days
-to 365 days.  Do the results match your expectations?
+**Question 2**: After 17-days, how different are the simulations with
+and without particle resampling?
 
-**Question 4**: After 365-days, how different are the simulations with and without particle resampling?
+**Question 3**: With the particles at 500, increase the length of the
+simulation from 17 days to 365 days. Do the results match your
+expectations?
 
-**Question 5**: How well are the three simulations able to constrain the other fluxes and 
-state variables that are output by the model (which should be updated in 
-proportion to how much they covary with LAI)? 
+**Question 4**: After 365-days, how different are the simulations with
+and without particle resampling?
 
-**Question 6**: Which parameters were most constrained by LAI? Does this make sense?
+**Question 5**: How well are the three simulations able to constrain the
+other fluxes and state variables that are output by the model (which
+should be updated in proportion to how much they covary with LAI)?
+
+**Question 6**: Which parameters were most constrained by LAI? Does this
+make sense?
+
+> THings more related to leaf area should be more constrained; things
+> less related to leaf area should show less effect
 
 ## Extra Credit
 
-**Question 7**: Convert the Analysis step of the resampling PF to an EnKF, rerun and compare 
-to the previous runs. For the sake of keeping this activity simple, don't worry 
-about updating parameters. 
+**Question 7**: Convert the Analysis step of the resampling PF to an
+EnKF, rerun and compare to the previous runs. For the sake of keeping
+this activity simple, don't worry about updating parameters.
 
-Hints: 
-(a) The ensemble Forecast step stays the same; 
-(b) Exercise 09 contains the `KalmanAnalysis` function that you need to be able 
-    to perform the Analysis step (instead of calculating Likelihoods and weights); 
-(c) you can calculate mu.f and P.f from the ensemble forecast sample mean and cov; 
-(d) The observation operator, H, should be a 1x12 matrix that's all zeros 
-    except for a 1 in the column that matches the observed data (LAI) in the 
-    model output; 
-(e) Once you have an update mu.a and P.a, you either need to sample new ensemble
-    members from that (e.g. rmvnorm), or use ensemble adjustment to nudge your 
-    current ensemble members to the correct mean and covariance.
+Hints: (a) The ensemble Forecast step stays the same; (b) Exercise 09
+contains the `KalmanAnalysis` function that you need to be able to
+perform the Analysis step (instead of calculating Likelihoods and
+weights); (c) you can calculate mu.f and P.f from the ensemble forecast
+sample mean and cov; (d) The observation operator, H, should be a 1x12
+matrix that's all zeros except for a 1 in the column that matches the
+observed data (LAI) in the model output; (e) Once you have an update
+mu.a and P.a, you either need to sample new ensemble members from that
+(e.g. rmvnorm), or use ensemble adjustment to nudge your current
+ensemble members to the correct mean and covariance.
 
 ## Applying this to your own forecast
 
-To extend the particle filter and Ensemble Kalman Filter approaches to develop 
-iterative forecasts for you own models, you would need to apply the following 
-steps:
+To extend the particle filter and Ensemble Kalman Filter approaches to
+develop iterative forecasts for you own models, you would need to apply
+the following steps:
 
-1) Develop an ensemble forecast for your own model that propagates uncertainties.
-See the "Applying this to your own forecast" section in the Chapter 11 activity. 
-If your model exists outside of R (e.g. compiled computer code), you'll want to 
-make sure that this model has the capacity to restart from new initial conditions.
+1)  Develop an ensemble forecast for your own model that propagates
+    uncertainties. See the "Applying this to your own forecast" section
+    in the Chapter 11 activity. If your model exists outside of R (e.g.
+    compiled computer code), you'll want to make sure that this model
+    has the capacity to restart from new initial conditions.
 
-2) Load and organize the data you'll be using to constrain you model, and 
-understanding the mapping between your model's state variables and your 
-observations (in EnKF this means constructing the matrix H).
+2)  Load and organize the data you'll be using to constrain you model,
+    and understanding the mapping between your model's state variables
+    and your observations (in EnKF this means constructing the matrix
+    H).
 
-3A) If you are using an EnKF, the Analysis code you developed above should 
-work out-of-the-box for many problems. For very large data problems you may 
-need to address challenges such as inverting large matrices and localization.
+3A) If you are using an EnKF, the Analysis code you developed above
+should work out-of-the-box for many problems. For very large data
+problems you may need to address challenges such as inverting large
+matrices and localization.
 
-3B) If you are using PF, you will need to construct the Likelihood (i.e. data 
-model) appropriate for your data constraints.
+3B) If you are using PF, you will need to construct the Likelihood (i.e.
+data model) appropriate for your data constraints.
