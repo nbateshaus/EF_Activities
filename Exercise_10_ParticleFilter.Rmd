@@ -606,7 +606,9 @@ smooth.params <- function(params,h=1){
   params.star[params.star < 0] = 0
   falloc = params.star[,c("falloc.1","falloc.2","falloc.3")]
   falloc = falloc / rowSums(falloc)  ## fractional allocation needs to sum to 1
-  params.star[,c("falloc.1","falloc.2","falloc.3")] = falloc
+  params.star = as.list(params.star)
+  params.star[c("falloc.1","falloc.2","falloc.3")] = NULL
+  params.star[["falloc"]] = unname(as.matrix(falloc))
   return(params.star)
 }
 ```
@@ -650,7 +652,7 @@ ParticleFilter <- function(out,params,dat,wt=1){
     ## resample ensemble members in proportion to their weight
     index = sample.int(ne, ne, replace = TRUE, prob = wtn) 
     X = X[index, ]                                ## update state
-    params = smooth.params(params[index,],h=0.95) ## kernel smooth updated parameters
+    params = smooth.params(as.data.frame(params)[index,],h=0.95)
     wt = rep(1,ne)                                ## if resample, reset weights
   }
   return(list(params=params,X=X, wt=wt))  ## analysis updates parameters, state, and weights
@@ -794,39 +796,39 @@ change your results?
 
 ```{r}
 ne <- 5000
-make_x <- function(ne) {
+make_x <- function(n) {
   as.matrix(cbind(
-    rnorm(ne, X.orig[1], sd(Bleaf)),
-    rnorm(ne, X.orig[2], sd(Bwood)),
-    rnorm(ne, X.orig[3], sd(SOM))
+    rnorm(n, X.orig[1], sd(Bleaf)),
+    rnorm(n, X.orig[2], sd(Bwood)),
+    rnorm(n, X.orig[3], sd(SOM))
   ))
 }
 X5000 <- make_x(ne)
 
-make_params <- function(ne) {
+make_params <- function(n) {
   params <- list()
-  params$SLA <- rnorm(ne, mean(SLA), sd(SLA))
-  params$alpha <- rlnorm(ne, log(0.02), 0.05)
-  params$Q10 <- rnorm(ne, 2.1, 0.1)
-  params$Rbasal <- rlnorm(ne, log(0.2), 1) / (params$Q10^2.5)
+  params$SLA <- rnorm(n, mean(SLA), sd(SLA))
+  params$alpha <- rlnorm(n, log(0.02), 0.05)
+  params$Q10 <- rnorm(n, 2.1, 0.1)
+  params$Rbasal <- rlnorm(n, log(0.2), 1) / (params$Q10^2.5)
   
-  Neff <- matrix(rpois(ne, 100), ne)
-  params$falloc <- rdirichlet(ne,Neff%*%alloc)
-  params$sigma.leaf <- 1 / sqrt(rgamma(ne, 10, 10 * 0.01 ^ 2))
-  params$sigma.stem <- 1 / sqrt(rgamma(ne, 10, 10 * 0.1 ^ 2))
-  params$sigma.soil <- 1 / sqrt(rgamma(ne, 10, 10 * 0.1 ^ 2))
+  Neff <- matrix(rpois(n, 100), n)
+  params$falloc <- rdirichlet(n,Neff%*%alloc)
+  params$sigma.leaf <- 1 / sqrt(rgamma(n, 10, 10 * 0.01 ^ 2))
+  params$sigma.stem <- 1 / sqrt(rgamma(n, 10, 10 * 0.1 ^ 2))
+  params$sigma.soil <- 1 / sqrt(rgamma(n, 10, 10 * 0.1 ^ 2))
   
   litter <- rnorm(10000,mean(litterfall),sd(litterfall)/sqrt(2))/
     rnorm(10000,mean(Bleaf),sd(Bleaf)/sqrt(2))
-  litter.mu = rnorm(ne,mean(lit),sd(lit))*timestep/86400/365
-  litter.sd = 1/sqrt(rgamma(ne,10,10*var(lit)))*timestep/86400/365
+  litter.mu = rnorm(n,mean(lit),sd(lit))*timestep/86400/365
+  litter.sd = 1/sqrt(rgamma(n,10,10*var(lit)))*timestep/86400/365
   litter.param = beta.match(litter.mu,litter.sd^2)
-  params$litterfall = rbeta(ne,litter.param$a,litter.param$b)
+  params$litterfall = rbeta(n,litter.param$a,litter.param$b)
   
-  mortality.mu = 1/rpois(ne,142)*timestep/86400/365
-  mortality.sd = rbeta(ne,4,4)*mortality.mu*timestep/86400/365
+  mortality.mu = 1/rpois(n,142)*timestep/86400/365
+  mortality.sd = rbeta(n,4,4)*mortality.mu*timestep/86400/365
   mortality.param = beta.match(mortality.mu,mortality.sd^2)
-  params$mortality = rbeta(ne,mortality.param$a,mortality.param$b)
+  params$mortality = rbeta(n,mortality.param$a,mortality.param$b)
   
   return(params)
 }
@@ -949,6 +951,42 @@ plot_forecast(out5000)
 **Question 3**: With the particles at 500, increase the length of the
 simulation from 17 days to 365 days. Do the results match your
 expectations?
+
+> 3.a. Re-run with ne=5000, nt appropriate for 365 days
+
+```{r}
+nt <- 365 * 24 * 2
+
+X5000_365 <- X5000.orig
+params5000_365 <- params5000
+Analysis <- list()
+wt <- rep(1, ne)
+out5000_365 <- array(0.0, c(nt, ne, 12))
+sample <- 1
+for (t in 1:nt) {
+  out5000_365[t, , ] <- SSEM.orig(X5000_365, params5000_365, inputs[t, ])
+  X5000_365 <- out5000_365[t, , 1:3]
+
+  if (t %% (48 * 8) == 0) {
+    print(sample)
+    if (!is.na(LAIr[sample])) {
+      Analysis[[sample]] <- ParticleFilter(
+        out5000_365[t, , ],
+        params5000_365,
+        data.frame(
+          LAI = LAIr[sample],
+          sigma = LAIr.sd[sample]
+        ),
+        wt
+      )
+      X5000_365 <- Analysis[[sample]]$X
+      params5000_365 <- Analysis[[sample]]$params
+      wt <- Analysis[[sample]]$wt
+    }
+    sample <- sample + 1
+  }
+}
+```
 
 **Question 4**: After 365-days, how different are the simulations with
 and without particle resampling?
