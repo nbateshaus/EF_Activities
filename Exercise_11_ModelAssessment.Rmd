@@ -78,10 +78,17 @@ abline(0, 1, col = 2, lwd = 2)
 abline(NEE.pf.fit, col = 3, lwd = 3, lty = 2)
 legend("bottomright", legend = c("obs", "1:1", "reg"), col = 1:3, lwd = 3)
 ```
+### Question 1
 
 Question 1 [A]: Which version of the model performed better? Do the
 statistics or plots give any indication about what parameters might need
 to be fixed, or processeses refined in the model?
+
+> The particle filter performed slightly better acrosss all metrics.
+> The stats / plots don't really show *why* the pf did better, or
+> what to tune or change to improve either model.
+
+### Question 2
 
 Question 2 [B]: Plot a time-series of observed and modeled **daily
 mean** NEE. Make sure to use the gap-filled NEE estimates, since flux
