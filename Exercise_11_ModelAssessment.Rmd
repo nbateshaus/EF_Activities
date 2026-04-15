@@ -1,9 +1,12 @@
-Model Assessment
-========================================================
+# Model Assessment
 
-In this activity we will use a series of visualizations and statistical measures to assess the performance of our Super Simple Ecosystem Model at the Metolius site.
+In this activity we will use a series of visualizations and statistical
+measures to assess the performance of our Super Simple Ecosystem Model
+at the Metolius site.
 
-Let's start by loading the ensemble output from the previous lab and the observed flux data for the site.
+Let's start by loading the ensemble output from the previous lab and the
+observed flux data for the site.
+
 ```{r}
 ## load libraries
 library("plotrix")
@@ -20,10 +23,15 @@ L4 = read.csv("data/AMF_USMe2_2005_L4_h_V002.txt",header=TRUE,na.strings="-9999"
 L4[L4==-9999] = NA
 ```
 
-Model vs. Data
---------------
+## Model vs. Data
 
-In the following section we will begin with some basic diagnostic plots and statistics assessing the predicted NEE by our simple ecosystem model. Specifically, we will calculate the Root Mean Square Error (RMSE), bias, correlation coefficient, and regression slopes of the relationship between the observed and predicted NEE for both the original ensemble and the particle filter. We will also generate scatter plots of predicted vs. observed values.
+In the following section we will begin with some basic diagnostic plots
+and statistics assessing the predicted NEE by our simple ecosystem
+model. Specifically, we will calculate the Root Mean Square Error
+(RMSE), bias, correlation coefficient, and regression slopes of the
+relationship between the observed and predicted NEE for both the
+original ensemble and the particle filter. We will also generate scatter
+plots of predicted vs. observed values.
 
 ```{r}
 
@@ -65,14 +73,32 @@ abline(NEE.pf.fit,col=3,lwd=3,lty=2)
 legend("bottomright",legend=c('obs','1:1','reg'),col=1:3,lwd=3)
 ```
 
-Question 1 [A]: Which version of the model performed better? Do the statistics or plots give any indication about what parameters might need to be fixed, or processeses refined in the model?
+Question 1 [A]: Which version of the model performed better? Do the
+statistics or plots give any indication about what parameters might need
+to be fixed, or processeses refined in the model?
 
-Question 2 [B]: Plot a time-series of observed and modeled **daily mean** NEE. Make sure to use the gap-filled NEE estimates, since flux data are not missing at random. Hint: you can use `tapply` and the day of year column in the data
+Question 2 [B]: Plot a time-series of observed and modeled **daily
+mean** NEE. Make sure to use the gap-filled NEE estimates, since flux
+data are not missing at random. Hint: you can use `tapply` and the day
+of year column in the data
 
-Taylor diagram
---------------
+## Taylor diagram
 
-Next, let's use a Taylor diagram to pull our summary statistics together into one plot. One of the advantages of the Taylor diagram is that it makes it simpler to visually diagnose the relative differences in model performance, especially when comparing multiple models or different versions of the same model. In the figure below we'll begin by plotting the ensemble, the particle filter, and the climatology. While not common, the Taylor diagram also provides a way of expressing model and data uncertainty in the plot by plotting ensemble estimates of both. Below we add all 200 members of the model ensemble, as well as a Monte Carlo estimate of observation error in the flux data. The latter is derived based on the research by Richardson et al (2006), who showed that eddy covariance data has a non-symmetric heteroskedastic, Laplace distribution. The non-symmetric part refers to the fact that there is greater error in positive fluxes (= respiration, typically nocturnal measurments) than in negative ones.
+Next, let's use a Taylor diagram to pull our summary statistics together
+into one plot. One of the advantages of the Taylor diagram is that it
+makes it simpler to visually diagnose the relative differences in model
+performance, especially when comparing multiple models or different
+versions of the same model. In the figure below we'll begin by plotting
+the ensemble, the particle filter, and the climatology. While not
+common, the Taylor diagram also provides a way of expressing model and
+data uncertainty in the plot by plotting ensemble estimates of both.
+Below we add all 200 members of the model ensemble, as well as a Monte
+Carlo estimate of observation error in the flux data. The latter is
+derived based on the research by Richardson et al (2006), who showed
+that eddy covariance data has a non-symmetric heteroskedastic, Laplace
+distribution. The non-symmetric part refers to the fact that there is
+greater error in positive fluxes (= respiration, typically nocturnal
+measurments) than in negative ones.
 
 ```{r}
 ## Taylor diagrams: Ensemble
@@ -98,14 +124,23 @@ for(i in 1:200){
 legend("topright",legend=c("ens","PF","obsUncert"),col=2:5,pch=20,cex=0.7)
 ```
 
-Question 3 [A]: What did you learn about model performance from the Taylor diagram? 
+Question 3 [A]: What did you learn about model performance from the
+Taylor diagram?
 
-Question 4 [B]: How do our simple models compare to the ensemble of ecosystem models in Figure 7 of Schwalm et al 2010  "A model-data intercomparison of CO2 exchange across North America: results from the north american carbon program site synthesis". J. Geophys. Res. ?
+Question 4 [B]: How do our simple models compare to the ensemble of
+ecosystem models in Figure 7 of Schwalm et al 2010 "A model-data
+intercomparison of CO2 exchange across North America: results from the
+north american carbon program site synthesis". J. Geophys. Res. ?
 
-Bayesian p-values
------------------
+## Bayesian p-values
 
-Next, let's look at the patterns in the Bayesian 'p-values', which is essentially a plot of the quantiles of the observed values relative to the predictive distributions. The ideal distribution of quantiles if flat (values show up as frequently as predicted), overcalibrated models tend to have too many observations near 50%, while poorly calibrated models will tend to produce a lot of 0's and 1's (consistently under- or over-predicting). 
+Next, let's look at the patterns in the Bayesian 'p-values', which is
+essentially a plot of the quantiles of the observed values relative to
+the predictive distributions. The ideal distribution of quantiles if
+flat (values show up as frequently as predicted), overcalibrated models
+tend to have too many observations near 50%, while poorly calibrated
+models will tend to produce a lot of 0's and 1's (consistently under- or
+over-predicting).
 
 ```{r}
 O = L4$NEE_st_fMDS  ## observed
@@ -116,17 +151,28 @@ for(i in 1:nrow(NEE.pf)){
 plot(pval.pf)   ## quantile 'residuals'
 hist(pval.pf,probability=TRUE) ## quantile distribution (should be flat)
 ```
-Question 5 [A]: How do **both** the ensemble and particle filter perform in terms of the predicted quantiles?
 
-CRPS
-----
+Question 5 [A]: How do **both** the ensemble and particle filter perform
+in terms of the predicted quantiles?
 
-Building on our ideas related to model skill scores (e.g. accuracy vs precision) and our ideas about assessing probabilistic forecasts (e.g. Bayesian p-values), is the idea of skill scores for probabalistic forecasts. A number of such scores exist, with one of the more popular being the Continuous Rank Probability Score (CRPS). 
+## CRPS
+
+Building on our ideas related to model skill scores (e.g. accuracy vs
+precision) and our ideas about assessing probabilistic forecasts (e.g.
+Bayesian p-values), is the idea of skill scores for probabalistic
+forecasts. A number of such scores exist, with one of the more popular
+being the Continuous Rank Probability Score (CRPS).
 
 $$CRPS = {1 \over m} \sum_{i=1}^m|X_i-y| 
 - {1 \over {2m^2}}\sum_{i=1}^m\sum_{j=1}^m|X_i-X_j|$$
 
-Where y is the data and the X's are ensemble members within the prediciton. The first term in CRPS represents the mean absolute error. The second applies a penalty based on the magnitude of the ensemble spread. To start, let's apply CRPS to the particle filter forecast, which returns a score for every data point. To summarize and visualize this we then calculate the average CRPS, plot CRPS over time, and calculate a histogram to visualize the distribution.
+Where y is the data and the X's are ensemble members within the
+prediciton. The first term in CRPS represents the mean absolute error.
+The second applies a penalty based on the magnitude of the ensemble
+spread. To start, let's apply CRPS to the particle filter forecast,
+which returns a score for every data point. To summarize and visualize
+this we then calculate the average CRPS, plot CRPS over time, and
+calculate a histogram to visualize the distribution.
 
 ```{r}
 crps = scoringRules::crps_sample(y = O, dat = NEE.pf)
@@ -136,7 +182,9 @@ plot(time,crps)
 hist(crps)
 ```
 
-It's not particularly easy to see how the model is doing from the timeseries, so we also calculate the mean diurnal cycle and the relationship between model skill and flux 
+It's not particularly easy to see how the model is doing from the
+timeseries, so we also calculate the mean diurnal cycle and the
+relationship between model skill and flux
 
 ```{r}
 ### diurnal cycle of model skill
@@ -148,20 +196,43 @@ plot(time.of.day,crps.diurnal)
 plot(O,crps)
 ```
 
-Question 6 [A]: Compare the CRPS for the ensemble and PF models. How do they perform overall (mean) in terms of their ability to produce the correct seasonal and diurnal cycles? Explain the pattern of the relationship between NEE and CRPS.
+Question 6 [A]: Compare the CRPS for the ensemble and PF models. How do
+they perform overall (mean) in terms of their ability to produce the
+correct seasonal and diurnal cycles? Explain the pattern of the
+relationship between NEE and CRPS.
 
-Mining the Residuals
---------------------
+## Mining the Residuals
 
-In the final section we'll use a few off-the-shelf data mining approaches to look at the model residuals and ask what parts of our input space are associated with the largest model error. Note that we are not limited to just examining the effects of the model inputs, we might also look at other potential drivers that are not included in our model, such as soil moisture, to ask if model error is associated with our failure to include this (or other) drivers. Alternatively, we could have looked at other factors such as the time of day or even other model variables (e.g. is model error higher when LAI is larger or small?)
+In the final section we'll use a few off-the-shelf data mining
+approaches to look at the model residuals and ask what parts of our
+input space are associated with the largest model error. Note that we
+are not limited to just examining the effects of the model inputs, we
+might also look at other potential drivers that are not included in our
+model, such as soil moisture, to ask if model error is associated with
+our failure to include this (or other) drivers. Alternatively, we could
+have looked at other factors such as the time of day or even other model
+variables (e.g. is model error higher when LAI is larger or small?)
 
-Of the many algorithms out there we'll look at two: the Classification and Regression Tree (CART) model and the Random Forest model. For both we'll define our error metric as $(E-O)/beta$, where beta is the parameter equivalent to the variance in Laplace distribution. Specifically, we're using the heteroskedastic observation error to reweight the residuals to account for the fact that large residuals at times of high flux is likely due to high measurement error. Thus the errors can be interpreted as similar to the number of of standard deviations.
+Of the many algorithms out there we'll look at two: the Classification
+and Regression Tree (CART) model and the Random Forest model. For both
+we'll define our error metric as $(E-O)/beta$, where beta is the
+parameter equivalent to the variance in Laplace distribution.
+Specifically, we're using the heteroskedastic observation error to
+reweight the residuals to account for the fact that large residuals at
+times of high flux is likely due to high measurement error. Thus the
+errors can be interpreted as similar to the number of of standard
+deviations.
 
-The CART model is a classification algorithm which will build a tree that discretely classifies when the model has high and low error.
+The CART model is a classification algorithm which will build a tree
+that discretely classifies when the model has high and low error.
 
-The Random Forest model is more like a response surface. The Random Forest will generate 'partial dependence' plots, which indicate the importance of each factor across its range, as well as an overall estimate of the importance of each factor in the model error. 
+The Random Forest model is more like a response surface. The Random
+Forest will generate 'partial dependence' plots, which indicate the
+importance of each factor across its range, as well as an overall
+estimate of the importance of each factor in the model error.
 
-The key thing to remember in all these plots is that we're modelling the RESIDUALS in order to diagnose errors, not modeling the NEE itself.
+The key thing to remember in all these plots is that we're modelling the
+RESIDUALS in order to diagnose errors, not modeling the NEE itself.
 
 ```{r, fig.height=6}
 ## define error metric and dependent variables
@@ -187,12 +258,20 @@ partialPlot(rfe,x[smp,],"PAR")
 partialPlot(rfe,x[smp,],"temp")
 ```
 
-Question 7 [A]: Overall, which driver is most important in explaining model error? What conditions are most associated with model success? With model failure?  Where do these results reinforce conclusions we reached earlier and where do they shine light on new patterns you may have missed earlier?
+Question 7 [A]: Overall, which driver is most important in explaining
+model error? What conditions are most associated with model success?
+With model failure? Where do these results reinforce conclusions we
+reached earlier and where do they shine light on new patterns you may
+have missed earlier?
 
-Functional Responses
---------------------
+## Functional Responses
 
-In this section we look at how well the model performed by assessing the modeled relationships between inputs and outputs and comparing that to the same relationship in the data. The raw relationships are very noisy, as many covariates are changing beyond just the single input variable we are evaluating, so in addition we calculate binned means for both the model and data.
+In this section we look at how well the model performed by assessing the
+modeled relationships between inputs and outputs and comparing that to
+the same relationship in the data. The raw relationships are very noisy,
+as many covariates are changing beyond just the single input variable we
+are evaluating, so in addition we calculate binned means for both the
+model and data.
 
 ```{r}
 ## raw
@@ -229,12 +308,13 @@ legend("topleft",legend=c("Model","Data"),lwd=10,col=c(col2,col1),lty=1,cex=1.7)
 
 ```
 
-Question 8 [A]: Evaluate the model's ability to capture functional responses to both Temperature and PAR.
+Question 8 [A]: Evaluate the model's ability to capture functional
+responses to both Temperature and PAR.
 
-Overall 
--------
+## Overall
 
-Below is a final summary figure of the model's performance on a daily timescale that combines many of the previous assessments.
+Below is a final summary figure of the model's performance on a daily
+timescale that combines many of the previous assessments.
 
 ```{r}
 
@@ -274,13 +354,14 @@ text(rpe,cex=1.5)
 
 ```
 
-
 # Extra Material
 
-Comparison to flux "climatology"
--------------------------------
+## Comparison to flux "climatology"
 
-In the section below we calculate the long-term average NEE for each 30 min period in the year, excluding the year we modeled (2005) as an alternative model to judge our process model against. We then update our summary statistics and predicted-observed plot
+In the section below we calculate the long-term average NEE for each 30
+min period in the year, excluding the year we modeled (2005) as an
+alternative model to judge our process model against. We then update our
+summary statistics and predicted-observed plot
 
 ```{r}
 ## flux "climatology"
@@ -315,14 +396,20 @@ lines(L4$DoY,-NEE.clim,col=4,lwd=2,lty=2)
 legend("topright",legend=c("Obs","clim"),lty=1:2,col=c(1,4),lwd=2)
 ```
 
-Question 9 [B]: How does the process model perform relative to the average flux data? Which statistics showed the largest differences between the model and climatology? 
+Question 9 [B]: How does the process model perform relative to the
+average flux data? Which statistics showed the largest differences
+between the model and climatology?
 
-Time-scales
------------
+## Time-scales
 
-Many ecological processes operate at multiple time scales. For example, carbon flux data responds to the diurnal cycle of light and temperature, meso-scale variability due to weather fronts, seasonal variability, and inter-annual variability driven by longer-term climate modes, as well as disturbance and succession.
+Many ecological processes operate at multiple time scales. For example,
+carbon flux data responds to the diurnal cycle of light and temperature,
+meso-scale variability due to weather fronts, seasonal variability, and
+inter-annual variability driven by longer-term climate modes, as well as
+disturbance and succession.
 
-In the next section we look at the average diurnal cycle of the data and models.
+In the next section we look at the average diurnal cycle of the data and
+models.
 
 ```{r}
 ## diurnal cycle
@@ -339,4 +426,9 @@ lines(tod,NEE.obs.diurnal,lwd=3)
 legend("bottomright",legend=c("obs","ens","PF","clim"),col=1:4,pch=20,cex=0.75)
 ```
 
-Question 10 [C]: What time of day has the largest uncertainty? What does this suggest about what parameter(s) needs to be modified in the model, in what direction, and by approximately how much? In providing this answer, recall the structure of the model as well as the fact that the particle filter has assimilated LAI so we can assume that that term is unbiased for that case.
+Question 10 [C]: What time of day has the largest uncertainty? What does
+this suggest about what parameter(s) needs to be modified in the model,
+in what direction, and by approximately how much? In providing this
+answer, recall the structure of the model as well as the fact that the
+particle filter has assimilated LAI so we can assume that that term is
+unbiased for that case.
