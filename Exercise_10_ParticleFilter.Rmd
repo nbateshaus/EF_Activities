@@ -787,6 +787,8 @@ for(i in 1:length(params)){      ## loop over parameters
 
 ## Exercises
 
+### Question 1
+
 **Question 1**: Increase the number of particles to 500. How does this
 change your results?
 
@@ -795,7 +797,7 @@ change your results?
 > 1.a. Set up parameters for an ensemble of 500.
 
 ```{r}
-ne <- 5000
+ne <- 500
 make_x <- function(n) {
   as.matrix(cbind(
     rnorm(n, X.orig[1], sd(Bleaf)),
@@ -803,7 +805,6 @@ make_x <- function(n) {
     rnorm(n, X.orig[3], sd(SOM))
   ))
 }
-X5000 <- make_x(ne)
 
 make_params <- function(n) {
   params <- list()
@@ -832,9 +833,10 @@ make_params <- function(n) {
   
   return(params)
 }
-params5000 <- make_params(ne)
 
-X5000.orig <- X5000
+X500 <- make_x(ne)
+X500.orig <- X500
+params500 <- make_params(ne)
 ```
 
 > 1.b. Initial Forecast
@@ -842,12 +844,12 @@ X5000.orig <- X5000
 > Did I construct params500 in a sane way?
 
 ```{r}
-out5000.ensemble <- ensemble_forecast(X5000.orig, params5000, inputs[1:nt, ])
-out5000.daily <- array(0.0, c(ceiling(nt/bin), ne, 12))
+out500.ensemble <- ensemble_forecast(X500.orig, params500, inputs[1:nt, ])
+out500.daily <- array(0.0, c(ceiling(nt/bin), ne, 12))
 for (i in 1:12) {
-  out5000.daily[,,i] <- apply(out5000.ensemble[,,i],2, tapply, rep(1:365,each=bin)[1:nt], mean)
+  out500.daily[,,i] <- apply(out500.ensemble[,,i],2, tapply, rep(1:365,each=bin)[1:nt], mean)
 }
-plot_forecast(out5000.daily)
+plot_forecast(out500.daily)
 ```
 
 > Initial forecast looks OK - params500 seems sane.
@@ -855,20 +857,20 @@ plot_forecast(out5000.daily)
 > 1.c. Resampling Particle Filter
 
 ```{r}
-X5000 <- X5000.orig
+X500 <- X500.orig
 Analysis <- list()
 wt <- rep(1, ne)
-out5000 <- array(0.0, c(nt, ne, 12))
+out500 <- array(0.0, c(nt, ne, 12))
 sample <- 1
 for (t in 1:nt) {
-  out5000[t, , ] <- SSEM(X, params5000, inputs[t, ])
-  X <- out5000[t, , 1:3]
+  out500[t, , ] <- SSEM(X, params500, inputs[t, ])
+  X <- out500[t, , 1:3]
   if (t %% (48 * 8) == 0) {
     print(sample)
     if (!is.na(LAIr[sample])) {
       Analysis[[sample]] <- ParticleFilter(
-        out5000[t, , ],
-        params5000,
+        out500[t, , ],
+        params500,
         data.frame(
           LAI = LAIr[sample],
           sigma = LAIr.sd[sample]
@@ -876,7 +878,7 @@ for (t in 1:nt) {
         wt
       )
       X <- Analysis[[sample]]$X
-      params5000 <- Analysis[[sample]]$params
+      params500 <- Analysis[[sample]]$params
       wt <- Analysis[[sample]]$wt
     }
     sample <- sample + 1
@@ -888,26 +890,28 @@ for (t in 1:nt) {
 > 1.d. Compare 500-member resampling particle filter to 50-member
 
 ```{r}
-LAIpr5000 = t(apply(out5000[, , 4], 2, tapply, window, mean))
-LAIpr5000.ci = apply(LAIpr5000, 2, quantile, c(0.025,0.5,0.975))
+LAIpr500 = t(apply(out500[, , 4], 2, tapply, window, mean))
+LAIpr500.ci = apply(LAIpr500, 2, quantile, c(0.025,0.5,0.975))
 plot(Mtime[Msel], LAIm.ci[2, ], 
      ylim = range(c(range(LAIm.ci), range(LAIr, na.rm = TRUE))),
      type='n', ylab = "LAI", xlab = "Time")
 ciEnvelope(Mtime[Msel], LAIm.ci[1, ], LAIm.ci[3, ], col=col.pf[1])
 ciEnvelope(Mtime[Msel], LAIpr.ci[1, ], LAIpr.ci[3, ], col = col.pf[2])
-ciEnvelope(Mtime[Msel], LAIpr5000.ci[1, ], LAIpr5000.ci[3, ], col = col.pf[3])
+ciEnvelope(Mtime[Msel], LAIpr500.ci[1, ], LAIpr500.ci[3, ], col = col.pf[3])
 points(Mtime, LAIr)
 for(i in 1:length(LAIr)){
   if(!is.na(QC[i])){
     lines(rep(Mtime[i], 2), LAIr[i] + c(-1, 1) * LAIr.sd[i])
   }
 }
-legend("topleft",legend = c("ensemble", "pr, ne=50", "pr, ne=5000"), col=col.pf, lwd=5)
+legend("topleft",legend = c("ensemble", "pr, ne=50", "pr, ne=500"), col=col.pf, lwd=5)
 ```
 
 > So, Increasing the ensemble size increases the confidence interval. In
-> fact, with ne=5000, the CI is almost just a box, instead of the
+> fact, with ne=500, the CI is almost just a box, instead of the
 > gradually increasing shape at ne=50 or the ensemble forecast.
+
+### Question 2
 
 **Question 2**: After 17-days, how different are the simulations with
 and without particle resampling?
@@ -927,7 +931,7 @@ plot_forecast(output)
 > Forecast with resampling:
 
 ```{r}
-plot_forecast(out5000)
+plot_forecast(out500)
 ```
 
 > Overall, the forecasts *with* resampling are much smoother, with
@@ -948,39 +952,41 @@ plot_forecast(out5000)
 > The diurnal variables - GPP, NEP, etc. - look very similar, but with
 > slightly (single-digit %) lower means.
 
+### Question 3
+
 **Question 3**: With the particles at 500, increase the length of the
 simulation from 17 days to 365 days. Do the results match your
 expectations?
 
-> 3.a. Re-run with ne=5000, nt appropriate for 365 days
+> 3.a. Re-run with ne=500, nt appropriate for 365 days
 
 ```{r}
 nt <- 365 * 24 * 2
 
-X5000_365 <- X5000.orig
-params5000_365 <- params5000
+X500_365 <- X500.orig
+params500_365 <- params500
 Analysis <- list()
 wt <- rep(1, ne)
-out5000_365 <- array(0.0, c(nt, ne, 12))
+out500_365pr <- array(0.0, c(nt, ne, 12))
 sample <- 1
 for (t in 1:nt) {
-  out5000_365[t, , ] <- SSEM.orig(X5000_365, params5000_365, inputs[t, ])
-  X5000_365 <- out5000_365[t, , 1:3]
+  out500_365pr[t, , ] <- SSEM(X500_365, params500_365, inputs[t, ])
+  X500_365 <- out500_365pr[t, , 1:3]
 
   if (t %% (48 * 8) == 0) {
     print(sample)
     if (!is.na(LAIr[sample])) {
       Analysis[[sample]] <- ParticleFilter(
-        out5000_365[t, , ],
-        params5000_365,
+        out500_365pr[t, , ],
+        params500_365,
         data.frame(
           LAI = LAIr[sample],
           sigma = LAIr.sd[sample]
         ),
         wt
       )
-      X5000_365 <- Analysis[[sample]]$X
-      params5000_365 <- Analysis[[sample]]$params
+      X500_365 <- Analysis[[sample]]$X
+      params500_365 <- Analysis[[sample]]$params
       wt <- Analysis[[sample]]$wt
     }
     sample <- sample + 1
@@ -988,12 +994,153 @@ for (t in 1:nt) {
 }
 ```
 
+> 3.b. Look at it
+
+```{r}
+window <- rep(1:(length(yr)), each = 48 * 8, length = nt)
+LAIpr500_365 <- t(apply(out500_365pr[, , 4], 2, tapply, window, mean))
+LAIpr500_365.ci <- apply(LAIpr500_365, 2, quantile, c(0.025, 0.5, 0.975))
+Msel <- 1:ncol(LAIpr500_365.ci)
+```
+
+```{r}
+plot(
+  Mtime[Msel],
+  LAIpr500_365.ci[2, ],
+  ylim = range(c(range(LAIpr500_365.ci), range(LAIr, na.rm = TRUE))),
+  type = "l",
+  lwd = 5,
+  col = "black",
+  ylab = "LAI",
+  xlab = "Time"
+)
+ciEnvelope(Mtime[Msel], LAIpr500_365.ci[1, ], LAIpr500_365.ci[3, ], col = col.pf[2])
+points(Mtime, LAIr)
+for (i in 1:length(LAIr)) {
+  if (!is.na(QC[i])) {
+    lines(rep(Mtime[i], 2), LAIr[i] + c(-1, 1) * LAIr.sd[i])
+  }
+}
+legend(
+  "topleft",
+  legend = c("median", "ci"),
+  col = c("black", col.pf[2]),
+  lwd = 5
+)
+```
+
+> This ... does not meet expectations. I was expecting observations to
+> have a big impact, but they don't? Or rather, most don't? It looks
+> like observation 12, 21, and 28 shrink the CI and adjust the median,
+> but most observations do not. I suspect this is a programming issue,
+> rather than something intrinsic to the model. I've followed the code
+> that does sampling and incorporates inputs[t,], and I don't see the
+> issue.
+
+### Question 4
+
 **Question 4**: After 365-days, how different are the simulations with
 and without particle resampling?
+
+> 4.a. Run the non-resampling particle filter
+>
+> Turns out, I can't run 5000 x 365, so I backed down to 500 for this.
+
+```{r}
+X500_365 <- X500_365.orig
+params500_365 <- make_params(ne)
+out500_365.ensemble <- ensemble_forecast(X500_365, params500_365, inputs[1:nt, ])
+LAIm500_365 <- t(apply(out500_365.ensemble[, , 4], 2, tapply, window, mean))
+LAIm500_365.ci <- apply(LAIm500_365, 2, quantile, c(0.025, 0.5, 0.975))
+
+LAIlike <- array(NA, dim(LAIm500_365))
+sel <- 1:ncol(LAIm500_365.ci)
+for (i in 1:ne) {
+  LAIlike[i, ] <- dnorm(
+    LAIm500_365[i, ],
+    LAIr[sel],
+    LAIr.sd[sel],
+    log = TRUE
+  )
+  LAIlike[i, is.na(LAIlike[i, ])] <- 0
+  LAIlike[i, ] <- exp(cumsum(LAIlike[i, ]))
+}
+
+nobs <- ncol(LAIlike)
+LAIpf500_365.ci <- matrix(NA, 3, nobs)
+wbar <- apply(LAIlike, 2, mean)
+for (i in 1:nobs) {
+  LAIpf500_365.ci[, i] <- wtd.quantile(
+    LAIm500_365[, i],
+    LAIlike[, i] / wbar[i],
+    c(0.025, 0.5, 0.975)
+  )
+}
+```
+
+
+```{r}
+Msel = 1:ncol(LAI500_365pf.ci)
+plot(
+  Mtime[Msel],
+  LAI500_365pf.ci[2,],
+  ylab = "LAI",
+  xlab = "Time",
+  ylim=range(c(
+    range(LAI500_365pf.ci),
+    range(LAIr, na.rm=TRUE))
+  ),
+  type = 'n'
+)
+ciEnvelope(
+  Mtime[Msel],
+  LAIpf500_365.ci[1, ],
+  LAIpf500_365.ci[3, ],
+  col = col.pf[1]
+)
+lines(Mtime[Msel], LAIpf500_365.ci[2, ], col = "black")
+ciEnvelope(
+  Mtime[Msel],
+  LAIpr500_365.ci[1, ],
+  LAIpr500_365.ci[3, ],
+  col = col.pf[2]
+)
+lines(Mtime[Msel], LAIpr500_365.ci[2, ], col = "blue")
+points(Mtime, LAIr)    
+for(i in 1:length(LAIr)){
+  if(!is.na(QC[i])){
+    lines(rep(Mtime[i], 2), LAIr[i]+c(-1, 1) * LAIr.sd[i])
+  }
+}
+legend(
+  "topleft",
+  legend = c("Non-Resampling", "Resampling"),
+  col=c(col.pf[1], col.pf[2]),
+  lwd=5
+)
+```
+
+> The two kind of track each other; it looks like the non-resampling
+> particle filter is more sensitive to the observations than the
+> resampling particle filter. After 365 days, the non-resampling
+> filter is influenced by the last two, high observations, whereas the
+> resampling filter is not, so the non-resampling filter is significantly
+> higher than the resampling filter.
+>
+> The CI of the non-resampling filter is consistently smaller than the
+> CI of the resampling filter; the observations and observation CI
+> mostly match the median and CI of the non-resampling filter.
+>
+> The CI of the resampling filter is big, and the median does not track
+> the observations very well.
+
+### Question 5
 
 **Question 5**: How well are the three simulations able to constrain the
 other fluxes and state variables that are output by the model (which
 should be updated in proportion to how much they covary with LAI)?
+
+### Question 6
 
 **Question 6**: Which parameters were most constrained by LAI? Does this
 make sense?
@@ -1002,6 +1149,8 @@ make sense?
 > less related to leaf area should show less effect
 
 ## Extra Credit
+
+### Question 7
 
 **Question 7**: Convert the Analysis step of the resampling PF to an
 EnKF, rerun and compare to the previous runs. For the sake of keeping
