@@ -1174,8 +1174,11 @@ plot_forecast(out500_365pr)
 **Question 6**: Which parameters were most constrained by LAI? Does this
 make sense?
 
-> THings more related to leaf area should be more constrained; things
-> less related to leaf area should show less effect
+> Leaf Biomass, Leaf Area Index, and Literfall are the most constrained
+> by LAI, which makes sense since these three are the most directly
+> connected to observed LAI. Interestingly, mortality shows a loose
+> constraint from LAI, moreso than Ra, NEP, GPP, or other things
+> that would seem to correlate more with LAI.
 
 ## Extra Credit
 
