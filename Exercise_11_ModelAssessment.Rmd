@@ -1,3 +1,10 @@
+---
+title: "Model Assessment"
+output:
+  pdf_document: default
+  html_document: default
+---
+
 # Model Assessment
 
 In this activity we will use a series of visualizations and statistical
@@ -9,7 +16,7 @@ observed flux data for the site.
 
 ```{r}
 ## load libraries
-library("plotrix")
+library(plotrix)
 library(rpart)
 library(randomForest)
 library(scoringRules)
@@ -19,8 +26,8 @@ load("data/Ex10.output.RData")
 load("data/Ex10.output.pf.RData")
 
 ## load flux tower data
-L4 = read.csv("data/AMF_USMe2_2005_L4_h_V002.txt",header=TRUE,na.strings="-9999")
-L4[L4==-9999] = NA
+L4 <- read.csv("data/AMF_USMe2_2005_L4_h_V002.txt", header = TRUE, na.strings = "-9999")
+L4[L4 == -9999] <- NA
 ```
 
 ## Model vs. Data
@@ -34,43 +41,42 @@ original ensemble and the particle filter. We will also generate scatter
 plots of predicted vs. observed values.
 
 ```{r}
-
 ## Calculate ensemble means & apply QAQC
-qaqc = (L4$qf_NEE_st == 0)
-NEE.ens.bar = -apply(NEE.ens[,],1,mean)
-NEE.pf.bar  = -apply(NEE.pf[,],1,mean)
-E = NEE.ens.bar[qaqc]
-P = NEE.pf.bar[qaqc]
-O = L4$NEE_st_fMDS[qaqc]
+qaqc <- (L4$qf_NEE_st == 0)
+NEE.ens.bar <- -apply(NEE.ens[, ], 1, mean)
+NEE.pf.bar <- -apply(NEE.pf[, ], 1, mean)
+E <- NEE.ens.bar[qaqc]
+P <- NEE.pf.bar[qaqc]
+O <- L4$NEE_st_fMDS[qaqc]
 
 ## Model vs obs regressions
-NEE.ens.fit = lm(O ~ E)
-NEE.pf.fit = lm(O ~ P)
+NEE.ens.fit <- lm(O ~ E)
+NEE.pf.fit <- lm(O ~ P)
 
 ## performance stats
-stats = as.data.frame(matrix(NA,4,2))
-rownames(stats) <- c("RMSE","Bias","cor","slope")
-colnames(stats) <- c("ens","pf")
-stats["RMSE",'ens'] = sqrt(mean((E-O)^2))
-stats["RMSE",'pf']  = sqrt(mean((P-O)^2))
-stats['Bias','ens'] = mean(E-O)
-stats['Bias','pf']  = mean(P-O)
-stats['cor','ens']  = cor(E,O)
-stats['cor','pf']   = cor(P,O)
-stats['slope','ens'] = coef(NEE.ens.fit)[2]
-stats['slope','pf']  = coef(NEE.pf.fit)[2]
+stats <- as.data.frame(matrix(NA, 4, 2))
+rownames(stats) <- c("RMSE", "Bias", "cor", "slope")
+colnames(stats) <- c("ens", "pf")
+stats["RMSE", "ens"] <- sqrt(mean((E - O)^2))
+stats["RMSE", "pf"] <- sqrt(mean((P - O)^2))
+stats["Bias", "ens"] <- mean(E - O)
+stats["Bias", "pf"] <- mean(P - O)
+stats["cor", "ens"] <- cor(E, O)
+stats["cor", "pf"] <- cor(P, O)
+stats["slope", "ens"] <- coef(NEE.ens.fit)[2]
+stats["slope", "pf"] <- coef(NEE.pf.fit)[2]
 knitr::kable(stats)
 
 ## predicted-observed
-plot(E,O,pch=".",xlab="ensemble",ylab='observed',main='NEE (umol/m2/sec)')
-abline(0,1,col=2,lwd=2)
-abline(NEE.ens.fit,col=3,lwd=3,lty=2)
-legend("bottomright",legend=c('obs','1:1','reg'),col=1:3,lwd=3)
+plot(E, O, pch = ".", xlab = "ensemble", ylab = "observed", main = "NEE (umol/m2/sec)")
+abline(0, 1, col = 2, lwd = 2)
+abline(NEE.ens.fit, col = 3, lwd = 3, lty = 2)
+legend("bottomright", legend = c("obs", "1:1", "reg"), col = 1:3, lwd = 3)
 
-plot(P,O,pch=".",xlab="particle filter",ylab='observed',main='NEE (umol/m2/sec)')
-abline(0,1,col=2,lwd=2)
-abline(NEE.pf.fit,col=3,lwd=3,lty=2)
-legend("bottomright",legend=c('obs','1:1','reg'),col=1:3,lwd=3)
+plot(P, O, pch = ".", xlab = "particle filter", ylab = "observed", main = "NEE (umol/m2/sec)")
+abline(0, 1, col = 2, lwd = 2)
+abline(NEE.pf.fit, col = 3, lwd = 3, lty = 2)
+legend("bottomright", legend = c("obs", "1:1", "reg"), col = 1:3, lwd = 3)
 ```
 
 Question 1 [A]: Which version of the model performed better? Do the
@@ -102,26 +108,26 @@ measurments) than in negative ones.
 
 ```{r}
 ## Taylor diagrams: Ensemble
-taylor.diagram(ref=O,model=E,normalize=TRUE,ref.sd=TRUE)
+taylor.diagram(ref = O, model = E, normalize = TRUE, ref.sd = TRUE)
 
 ## add full ensemble
-for(i in 1:ncol(NEE.pf)){
-  taylor.diagram(ref=O,model=-NEE.ens[qaqc,i],col=2,pch=".",add=TRUE,normalize=TRUE)
+for (i in 1:ncol(NEE.pf)) {
+  taylor.diagram(ref = O, model = -NEE.ens[qaqc, i], col = 2, pch = ".", add = TRUE, normalize = TRUE)
 }
 
 # Taylor Diagram: particle filter
-taylor.diagram(ref=O,model=P,add=TRUE,normalize=TRUE,col=3)
+taylor.diagram(ref = O, model = P, add = TRUE, normalize = TRUE, col = 3)
 
 ## add data uncertainty
-rlaplace = function(n,mu,b){
-  return(mu + ifelse(rbinom(n,1,0.5),1,-1)*rexp(n,b))
+rlaplace <- function(n, mu, b) {
+  return(mu + ifelse(rbinom(n, 1, 0.5), 1, -1) * rexp(n, b))
 }
-beta = ifelse(O > 0,0.62+0.63*O,1.42-0.19*O) #Heteroskedasticity, parameters from Richardson et al 2006
-for(i in 1:200){
-  x = rlaplace(length(O),O,beta)
-  taylor.diagram(ref=O,model=x,col=5,add=TRUE,normalize=TRUE)
+beta <- ifelse(O > 0, 0.62 + 0.63 * O, 1.42 - 0.19 * O) # Heteroskedasticity, parameters from Richardson et al 2006
+for (i in 1:200) {
+  x <- rlaplace(length(O), O, beta)
+  taylor.diagram(ref = O, model = x, col = 5, add = TRUE, normalize = TRUE)
 }
-legend("topright",legend=c("ens","PF","obsUncert"),col=2:5,pch=20,cex=0.7)
+legend("topright", legend = c("ens", "PF", "obsUncert"), col = 2:5, pch = 20, cex = 0.7)
 ```
 
 Question 3 [A]: What did you learn about model performance from the
@@ -143,13 +149,13 @@ models will tend to produce a lot of 0's and 1's (consistently under- or
 over-predicting).
 
 ```{r}
-O = L4$NEE_st_fMDS  ## observed
-pval.pf = 0
-for(i in 1:nrow(NEE.pf)){
-  pval.pf[i] = sum(O[i] > -NEE.pf[i,])/ncol(NEE.pf)  ## quantiles of the particle filter
+O <- L4$NEE_st_fMDS ## observed
+pval.pf <- 0
+for (i in 1:nrow(NEE.pf)) {
+  pval.pf[i] <- sum(O[i] > -NEE.pf[i, ]) / ncol(NEE.pf) ## quantiles of the particle filter
 }
-plot(pval.pf)   ## quantile 'residuals'
-hist(pval.pf,probability=TRUE) ## quantile distribution (should be flat)
+plot(pval.pf) ## quantile 'residuals'
+hist(pval.pf, probability = TRUE) ## quantile distribution (should be flat)
 ```
 
 Question 5 [A]: How do **both** the ensemble and particle filter perform
@@ -175,10 +181,10 @@ this we then calculate the average CRPS, plot CRPS over time, and
 calculate a histogram to visualize the distribution.
 
 ```{r}
-crps = scoringRules::crps_sample(y = O, dat = NEE.pf)
-time = as.Date(L4$DoY,origin = "2005-01-01")
+crps <- scoringRules::crps_sample(y = O, dat = NEE.pf)
+time <- as.Date(L4$DoY, origin = "2005-01-01")
 mean(crps)
-plot(time,crps)
+plot(time, crps)
 hist(crps)
 ```
 
@@ -188,12 +194,12 @@ relationship between model skill and flux
 
 ```{r}
 ### diurnal cycle of model skill
-crps.diurnal = tapply(crps,L4$Hour,mean)
-time.of.day = as.numeric(names(crps.diurnal))
-plot(time.of.day,crps.diurnal)
+crps.diurnal <- tapply(crps, L4$Hour, mean)
+time.of.day <- as.numeric(names(crps.diurnal))
+plot(time.of.day, crps.diurnal)
 
 ## CRPS skill as a function of observed NEE
-plot(O,crps)
+plot(O, crps)
 ```
 
 Question 6 [A]: Compare the CRPS for the ensemble and PF models. How do
@@ -236,26 +242,26 @@ RESIDUALS in order to diagnose errors, not modeling the NEE itself.
 
 ```{r, fig.height=6}
 ## define error metric and dependent variables
-O = L4$NEE_st_fMDS[qaqc]
-err = (E-O)/beta
-x = cbind(inputs$PAR[qaqc],inputs$temp[qaqc])
-colnames(x) = c("PAR","temp")
-smp = sample.int(length(err),1000)  ## take a sample of the data since some alg. are slow
+O <- L4$NEE_st_fMDS[qaqc]
+err <- (E - O) / beta
+x <- cbind(inputs$PAR[qaqc], inputs$temp[qaqc])
+colnames(x) <- c("PAR", "temp")
+smp <- sample.int(length(err), 1000) ## take a sample of the data since some alg. are slow
 
 ### Classification tree
-rpb = rpart(err ~ x) ## bias
+rpb <- rpart(err ~ x) ## bias
 plot(rpb)
 text(rpb)
-e2 = err^2
-rpe = rpart(e2 ~ x) ## sq error
+e2 <- err^2
+rpe <- rpart(e2 ~ x) ## sq error
 plot(rpe)
 text(rpe)
 
 ## Random Forest
-rfe = randomForest(x[smp,],abs(err[smp]))
+rfe <- randomForest(x[smp, ], abs(err[smp]))
 rfe$importance
-partialPlot(rfe,x[smp,],"PAR")
-partialPlot(rfe,x[smp,],"temp")
+partialPlot(rfe, x[smp, ], "PAR")
+partialPlot(rfe, x[smp, ], "temp")
 ```
 
 Question 7 [A]: Overall, which driver is most important in explaining
@@ -275,37 +281,35 @@ model and data.
 
 ```{r}
 ## raw
-plot(inputs$temp[qaqc],O,pch=".",ylab="NEE")
-points(inputs$temp[qaqc],E,pch=".",col=2)
+plot(inputs$temp[qaqc], O, pch = ".", ylab = "NEE")
+points(inputs$temp[qaqc], E, pch = ".", col = 2)
 
 ## binned
-nbin = 25
-#PAR = inputs$PAR[qaqc]
-#x = seq(min(PAR),max(PAR),length=nbin)
-Tair = inputs$temp[qaqc]
-xd = seq(min(Tair),max(Tair),length=nbin)
-xmid = xd[-length(xd)] + diff(xd)
-bin = cut(Tair,xd)
-Obar = tapply(O,bin,mean,na.rm=TRUE)
-Ose  = tapply(O,bin,std.error,na.rm=TRUE)
-Ebar = tapply(E,bin,mean,na.rm=TRUE)
-Ese  = tapply(E,bin,std.error,na.rm=TRUE)
-OCI = -cbind(Obar-1.96*Ose,Obar,Obar+1.96*Ose)
-ECI = -cbind(Ebar-1.96*Ese,Ebar,Ebar+1.96*Ese)
-rng = range(rbind(OCI,ECI))
+nbin <- 25
+# PAR = inputs$PAR[qaqc]
+# x = seq(min(PAR),max(PAR),length=nbin)
+Tair <- inputs$temp[qaqc]
+xd <- seq(min(Tair), max(Tair), length = nbin)
+xmid <- xd[-length(xd)] + diff(xd)
+bin <- cut(Tair, xd)
+Obar <- tapply(O, bin, mean, na.rm = TRUE)
+Ose <- tapply(O, bin, std.error, na.rm = TRUE)
+Ebar <- tapply(E, bin, mean, na.rm = TRUE)
+Ese <- tapply(E, bin, std.error, na.rm = TRUE)
+OCI <- -cbind(Obar - 1.96 * Ose, Obar, Obar + 1.96 * Ose)
+ECI <- -cbind(Ebar - 1.96 * Ese, Ebar, Ebar + 1.96 * Ese)
+rng <- range(rbind(OCI, ECI))
 
-col2=ecoforecastR::col.alpha("darkgrey",0.9)
-col1=ecoforecastR::col.alpha("lightgrey",0.6)
+col2 <- ecoforecastR::col.alpha("darkgrey", 0.9)
+col1 <- ecoforecastR::col.alpha("lightgrey", 0.6)
 
-plot(xmid,Obar,ylim=rng,type='n',xlab="Air Temperature (C)",ylab="NEP (umol/m2/s)",cex.lab=1.3)
-ecoforecastR::ciEnvelope(xmid,ECI[,1],ECI[,3],col=col2)
-lines(xmid,ECI[,2],col="black",lwd=4)
-ecoforecastR::ciEnvelope(xmid,OCI[,1],OCI[,3],col=col1)
-lines(xmid,OCI[,2],col="lightgrey",lwd=4)
+plot(xmid, Obar, ylim = rng, type = "n", xlab = "Air Temperature (C)", ylab = "NEP (umol/m2/s)", cex.lab = 1.3)
+ecoforecastR::ciEnvelope(xmid, ECI[, 1], ECI[, 3], col = col2)
+lines(xmid, ECI[, 2], col = "black", lwd = 4)
+ecoforecastR::ciEnvelope(xmid, OCI[, 1], OCI[, 3], col = col1)
+lines(xmid, OCI[, 2], col = "lightgrey", lwd = 4)
 
-legend("topleft",legend=c("Model","Data"),lwd=10,col=c(col2,col1),lty=1,cex=1.7)
-
-
+legend("topleft", legend = c("Model", "Data"), lwd = 10, col = c(col2, col1), lty = 1, cex = 1.7)
 ```
 
 Question 8 [A]: Evaluate the model's ability to capture functional
@@ -317,41 +321,39 @@ Below is a final summary figure of the model's performance on a daily
 timescale that combines many of the previous assessments.
 
 ```{r}
-
 ### other summary figures to go in multi-panel
-par(mfrow=c(2,2))
+par(mfrow = c(2, 2))
 
 ## Time-series visualization, daily means
-DoY = floor(L4$DoY-0.02)
-uDoY = sort(unique(DoY))
-ci.pf  = apply(apply(NEE.pf[,],2,tapply,DoY,mean),1,mean)
-NEE = -L4$NEE_st_fMDS
-NEEd = tapply(NEE,DoY,mean)
-plot(uDoY,ci.pf,xlab="time",ylab="NEE",type='l',ylim=range(c(ci.pf,NEEd)),cex.lab=1.3)
-points(uDoY,NEEd,col=2,pch="+")
-legend("topright",legend=c("Model","Data"),lty=c(1,NA),pch=c(NA,"+"),col=1:2,cex=1.3)
+DoY <- floor(L4$DoY - 0.02)
+uDoY <- sort(unique(DoY))
+ci.pf <- apply(apply(NEE.pf[, ], 2, tapply, DoY, mean), 1, mean)
+NEE <- -L4$NEE_st_fMDS
+NEEd <- tapply(NEE, DoY, mean)
+plot(uDoY, ci.pf, xlab = "time", ylab = "NEE", type = "l", ylim = range(c(ci.pf, NEEd)), cex.lab = 1.3)
+points(uDoY, NEEd, col = 2, pch = "+")
+legend("topright", legend = c("Model", "Data"), lty = c(1, NA), pch = c(NA, "+"), col = 1:2, cex = 1.3)
 
 ## predicted vs observed
-plot(NEEd,ci.pf,xlab="Model",ylab="Data",cex.lab=1.3)
-abline(0,1,lty=2,lwd=4)
-abline(lm(ci.pf ~ NEEd),col=2,lwd=3,lty=3)
-legend("topleft",legend=c("1:1","Reg"),lty=2:3,lwd=4,col=1:2,cex=1.3)
+plot(NEEd, ci.pf, xlab = "Model", ylab = "Data", cex.lab = 1.3)
+abline(0, 1, lty = 2, lwd = 4)
+abline(lm(ci.pf ~ NEEd), col = 2, lwd = 3, lty = 3)
+legend("topleft", legend = c("1:1", "Reg"), lty = 2:3, lwd = 4, col = 1:2, cex = 1.3)
 
 ## Functional response
-plot(xmid,Obar,ylim=rng,type='n',xlab="Air Temperature (C)",ylab="NEP (umol/m2/s)",cex.lab=1.3)
-ecoforecastR::ciEnvelope(xmid,ECI[,1],ECI[,3],col=col2)
-lines(xmid,ECI[,2],col="black",lwd=4)
-ecoforecastR::ciEnvelope(xmid,OCI[,1],OCI[,3],col=col1)
-lines(xmid,OCI[,2],col="lightgrey",lwd=4)
+plot(xmid, Obar, ylim = rng, type = "n", xlab = "Air Temperature (C)", ylab = "NEP (umol/m2/s)", cex.lab = 1.3)
+ecoforecastR::ciEnvelope(xmid, ECI[, 1], ECI[, 3], col = col2)
+lines(xmid, ECI[, 2], col = "black", lwd = 4)
+ecoforecastR::ciEnvelope(xmid, OCI[, 1], OCI[, 3], col = col1)
+lines(xmid, OCI[, 2], col = "lightgrey", lwd = 4)
 
-legend("bottom",legend=c("Model","Data"),lwd=10,col=c(col2,col1),lty=1,cex=1.3)
+legend("bottom", legend = c("Model", "Data"), lwd = 10, col = c(col2, col1), lty = 1, cex = 1.3)
 
 ### Classification tree
-par(mar=c(0,0,0,0))
-rpe = rpart(e2 ~ PAR+Tair,as.data.frame(x),method="anova") ## sq error
-plot(rpe,margin=0.1)
-text(rpe,cex=1.5)
-
+par(mar = c(0, 0, 0, 0))
+rpe <- rpart(e2 ~ PAR + Tair, as.data.frame(x), method = "anova") ## sq error
+plot(rpe, margin = 0.1)
+text(rpe, cex = 1.5)
 ```
 
 # Extra Material
@@ -365,35 +367,35 @@ summary statistics and predicted-observed plot
 
 ```{r}
 ## flux "climatology"
-fluxfiles = dir("data",pattern="AMF")
-fluxfiles = fluxfiles[grep("txt",fluxfiles)]
-fluxfiles = fluxfiles[-grep("2005",fluxfiles)]
-clim.NEE = clim.doy = NULL
-for(f in fluxfiles){
-  ff = read.csv(file.path("data",f),header=TRUE,na.strings="-9999")
-  ff[ff == -9999] = NA
-  clim.NEE = c(clim.NEE,ff$NEE_st_fMDS)
-  clim.doy = c(clim.doy,ff$DoY)
+fluxfiles <- dir("data", pattern = "AMF")
+fluxfiles <- fluxfiles[grep("txt", fluxfiles)]
+fluxfiles <- fluxfiles[-grep("2005", fluxfiles)]
+clim.NEE <- clim.doy <- NULL
+for (f in fluxfiles) {
+  ff <- read.csv(file.path("data", f), header = TRUE, na.strings = "-9999")
+  ff[ff == -9999] <- NA
+  clim.NEE <- c(clim.NEE, ff$NEE_st_fMDS)
+  clim.doy <- c(clim.doy, ff$DoY)
 }
-NEE.clim=tapply(clim.NEE,clim.doy,mean,na.rm=TRUE)[1:length(qaqc)]
-C = NEE.clim[qaqc]
-NEE.clim.fit = lm(O ~ C)
+NEE.clim <- tapply(clim.NEE, clim.doy, mean, na.rm = TRUE)[1:length(qaqc)]
+C <- NEE.clim[qaqc]
+NEE.clim.fit <- lm(O ~ C)
 summary(NEE.clim.fit)
-stats["RMSE",3]  = sqrt(mean((C-O)^2))
-stats['Bias',3]  = mean(C-O)
-stats['cor',3]   = cor(C,O)
-stats['slope',3] = coef(NEE.clim.fit)[2]
+stats["RMSE", 3] <- sqrt(mean((C - O)^2))
+stats["Bias", 3] <- mean(C - O)
+stats["cor", 3] <- cor(C, O)
+stats["slope", 3] <- coef(NEE.clim.fit)[2]
 colnames(stats)[3] <- "clim"
 knitr::kable(stats)
-plot(C,O,pch=".",xlab="climatology",ylab='observed',main='NEE (umol/m2/sec)')
-abline(0,1,col=2,lwd=2)
-abline(NEE.clim.fit,col=3,lwd=3,lty=2)
-legend("bottomright",legend=c('obs','1:1','reg'),col=1:3,lwd=3)
+plot(C, O, pch = ".", xlab = "climatology", ylab = "observed", main = "NEE (umol/m2/sec)")
+abline(0, 1, col = 2, lwd = 2)
+abline(NEE.clim.fit, col = 3, lwd = 3, lty = 2)
+legend("bottomright", legend = c("obs", "1:1", "reg"), col = 1:3, lwd = 3)
 
 ## example cycle
-plot(L4$DoY,-L4$NEE_st_fMDS,xlim=c(200,210),type='l',lwd=2,ylim=c(-10,20),xlab="Day of Year",ylab="NEE")
-lines(L4$DoY,-NEE.clim,col=4,lwd=2,lty=2)
-legend("topright",legend=c("Obs","clim"),lty=1:2,col=c(1,4),lwd=2)
+plot(L4$DoY, -L4$NEE_st_fMDS, xlim = c(200, 210), type = "l", lwd = 2, ylim = c(-10, 20), xlab = "Day of Year", ylab = "NEE")
+lines(L4$DoY, -NEE.clim, col = 4, lwd = 2, lty = 2)
+legend("topright", legend = c("Obs", "clim"), lty = 1:2, col = c(1, 4), lwd = 2)
 ```
 
 Question 9 [B]: How does the process model perform relative to the
@@ -413,17 +415,17 @@ models.
 
 ```{r}
 ## diurnal cycle
-NEE.ens.diurnal = tapply(E,L4$Hour[qaqc],mean)
-NEE.pf.diurnal  = tapply(P,L4$Hour[qaqc],mean)
-NEE.clim.diurnal  = tapply(C,L4$Hour[qaqc],mean)
-NEE.obs.diurnal = tapply(O,L4$Hour[qaqc],mean)
-ylim=range(c(NEE.ens.diurnal,NEE.pf.diurnal,NEE.obs.diurnal))
-tod = sort(unique(L4$Hour))
-plot(tod,NEE.ens.diurnal,ylim=ylim,col=2,xlab="Time of Day",ylab='NEE',main="Diurnal Cycle",type='l',lwd=3)
-lines(tod,NEE.pf.diurnal,col=3,lwd=3)
-lines(tod,NEE.clim.diurnal,col=4,lwd=3)
-lines(tod,NEE.obs.diurnal,lwd=3)
-legend("bottomright",legend=c("obs","ens","PF","clim"),col=1:4,pch=20,cex=0.75)
+NEE.ens.diurnal <- tapply(E, L4$Hour[qaqc], mean)
+NEE.pf.diurnal <- tapply(P, L4$Hour[qaqc], mean)
+NEE.clim.diurnal <- tapply(C, L4$Hour[qaqc], mean)
+NEE.obs.diurnal <- tapply(O, L4$Hour[qaqc], mean)
+ylim <- range(c(NEE.ens.diurnal, NEE.pf.diurnal, NEE.obs.diurnal))
+tod <- sort(unique(L4$Hour))
+plot(tod, NEE.ens.diurnal, ylim = ylim, col = 2, xlab = "Time of Day", ylab = "NEE", main = "Diurnal Cycle", type = "l", lwd = 3)
+lines(tod, NEE.pf.diurnal, col = 3, lwd = 3)
+lines(tod, NEE.clim.diurnal, col = 4, lwd = 3)
+lines(tod, NEE.obs.diurnal, lwd = 3)
+legend("bottomright", legend = c("obs", "ens", "PF", "clim"), col = 1:4, pch = 20, cex = 0.75)
 ```
 
 Question 10 [C]: What time of day has the largest uncertainty? What does
