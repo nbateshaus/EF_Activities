@@ -1,8 +1,8 @@
 ---
 title: "Particle Filter"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r}
@@ -1047,7 +1047,7 @@ and without particle resampling?
 > Turns out, I can't run 5000 x 365, so I backed down to 500 for this.
 
 ```{r}
-X500_365 <- X500_365.orig
+X500_365 <- X500.orig
 params500_365 <- make_params(ne)
 out500_365.ensemble <- ensemble_forecast(X500_365, params500_365, inputs[1:nt, ])
 LAIm500_365 <- t(apply(out500_365.ensemble[, , 4], 2, tapply, window, mean))
@@ -1080,14 +1080,14 @@ for (i in 1:nobs) {
 
 
 ```{r}
-Msel = 1:ncol(LAI500_365pf.ci)
+Msel = 1:ncol(LAIpf500_365.ci)
 plot(
   Mtime[Msel],
-  LAI500_365pf.ci[2,],
+  LAIpf500_365.ci[2,],
   ylab = "LAI",
   xlab = "Time",
   ylim=range(c(
-    range(LAI500_365pf.ci),
+    range(LAIpf500_365.ci),
     range(LAIr, na.rm=TRUE))
   ),
   type = 'n'
