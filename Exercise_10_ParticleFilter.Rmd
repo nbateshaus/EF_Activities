@@ -1140,6 +1140,35 @@ legend(
 other fluxes and state variables that are output by the model (which
 should be updated in proportion to how much they covary with LAI)?
 
+```{r}
+plot_forecast(out500_365.ensemble)
+```
+
+```{r}
+plot_forecast(out500_365pr)
+```
+
+> The particle filter is responsive - both in median and CI - to
+> observations in a way that the ensemble is not. PF has tighter CI,
+> and is closer to the observations.
+>
+> Highly constrained:
+> - Bleaf
+> - LAI
+> - Litterfall
+>
+> Not constrained:
+> - Bwood
+> - BSOM
+> - GPP
+> - NEP
+> - Ra
+> - NPPw
+> - NPPI
+> - Rh
+>
+> Mortality showed a slight constraint from LAI.
+
 ### Question 6
 
 **Question 6**: Which parameters were most constrained by LAI? Does this
