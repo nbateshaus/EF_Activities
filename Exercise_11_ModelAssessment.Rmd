@@ -207,7 +207,7 @@ north american carbon program site synthesis". J. Geophys. Res. ?
 
 Next, let's look at the patterns in the Bayesian 'p-values', which is
 essentially a plot of the quantiles of the observed values relative to
-the predictive distributions. The ideal distribution of quantiles if
+the predictive distributions. The ideal distribution of quantiles is
 flat (values show up as frequently as predicted), overcalibrated models
 tend to have too many observations near 50%, while poorly calibrated
 models will tend to produce a lot of 0's and 1's (consistently under- or
@@ -223,8 +223,28 @@ plot(pval.pf) ## quantile 'residuals'
 hist(pval.pf, probability = TRUE) ## quantile distribution (should be flat)
 ```
 
+### Question 5
+
 Question 5 [A]: How do **both** the ensemble and particle filter perform
 in terms of the predicted quantiles?
+
+> The particle filter p-values are mostly 1, followed by some that are 0,
+> and only a very few that are in between. This indicates that the
+> particle filter consistently over-predicts NEE.
+
+```{r}
+pval.ens <- 0
+for (i in 1:nrow(NEE.ens)) {
+  pval.ens[i] <- sum(O[i] > -NEE.ens[i, ]) / ncol(NEE.ens)
+}
+plot(pval.ens)
+hist(pval.ens, probability = TRUE)
+
+```
+
+> The ensemble p-values are mostly 1, followed by some that are 0,
+> then a few in the 0.8 - 1.0 range, and only a very few others.
+> This indicates that the particle filter consistently over-predicts NEE.
 
 ## CRPS
 
