@@ -592,6 +592,21 @@ Question 9 [B]: How does the process model perform relative to the
 average flux data? Which statistics showed the largest differences
 between the model and climatology?
 
+> "The best physical model of a cat is another, or preferably the same,
+> cat." Unsurpisingly using general behavior of NEE to model the
+> behavior of NEE does better than either of our simple models.
+> 
+> * RMSE is 3.2, vs. 8.6 / 7.7
+> * Bias is 0.2, vs. -5.7 / -5
+> * Correlation is 0.8, vs. 0.66 / 0.67
+> * Slope is 0.97, vs. 0.41 / 0.45
+>
+> Each of these is a dramatic improvement.
+>
+> The plotted time interval, July 19 - July 29, is in the middle
+> of the period that the models dramatically over-predict NEE.
+> The climate model tracks observed NEE quite closely.
+
 ## Time-scales
 
 Many ecological processes operate at multiple time scales. For example,
