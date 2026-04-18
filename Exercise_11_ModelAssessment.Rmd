@@ -20,9 +20,12 @@ library(plotrix)
 library(rpart)
 library(randomForest)
 library(scoringRules)
+library(tidyverse)
 
 ## load SSEM output
+# loads "NEE.ens" "inputs"
 load("data/Ex10.output.RData")
+# loads "NEE.pf"
 load("data/Ex10.output.pf.RData")
 
 ## load flux tower data
@@ -94,6 +97,44 @@ Question 2 [B]: Plot a time-series of observed and modeled **daily
 mean** NEE. Make sure to use the gap-filled NEE estimates, since flux
 data are not missing at random. Hint: you can use `tapply` and the day
 of year column in the data
+
+```{r}
+nee_df <- tibble(
+  obs = L4$NEE_st_fMDS,
+  ens = NEE.ens.bar,
+  pf = NEE.pf.bar,
+  qaqc = (L4$qf_NEE_st == 0),
+  month = L4$Month,
+  day = L4$Day,
+  hour = L4$Hour,
+  timestamp = as_datetime(paste0(
+    "2005-", month, "-", day, " ",
+    floor(hour), ":", 60 * hour%%1, ":00"
+  ))
+) |>
+  # Remove observations that fail qaqc
+  mutate(obs = if_else(qaqc, obs, NA)) |>
+  select(timestamp, obs, ens, pf, qaqc)
+
+nee_daily <- nee_df |>
+  mutate(day = date(timestamp)) |>
+  group_by(day) |>
+  summarize(
+    obs = mean(obs, na.rm = TRUE),
+    ens = mean(ens),
+    pf = mean(pf)
+  )
+
+nee_daily |>
+  pivot_longer(cols = c(obs, ens, pf)) |>
+  ggplot(aes(day, value, color = name)) +
+  geom_line() +
+  theme_bw() +
+  ylab(bquote("NEE" ~ (umol %.% m^-2 %.% sec^-1))) +
+  scale_color_discrete(name = "Legend") +
+  ggtitle("Daily Mean NEE")
+
+```
 
 ## Taylor diagram
 
