@@ -642,3 +642,19 @@ in what direction, and by approximately how much? In providing this
 answer, recall the structure of the model as well as the fact that the
 particle filter has assimilated LAI so we can assume that that term is
 unbiased for that case.
+
+> PF and ENS perform worst in broad daylight.
+>
+> The model gets to see LAI, PAR, and temp. Without adding water to the model,
+> tuning other parameters is tweaking a wrong model. Therefore, the parameter(s)
+> that need tuning are water, preferably plant avaialable water.
+> 
+> If PAW is available in the input we're all set. Otherwise, we can
+> do something with precipitation and exponential decay of PAW,
+> presumably modified by temperature. Then we modify GPP to
+> decline sharply as PAW decreases below the minimum needed for full GPP.
+>
+> Once we've dealt with water, it looks like Ra is too low, and we need
+> to dial that up by the differnene between the nighttime means of O and
+> E, which is currently 2.48 but might change after having fixed the
+> omission of water from the model.
