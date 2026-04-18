@@ -156,6 +156,8 @@ greater error in positive fluxes (= respiration, typically nocturnal
 measurments) than in negative ones.
 
 ```{r}
+par(pty = "s") # taylor diagrams only make sense if circular
+
 ## Taylor diagrams: Ensemble
 taylor.diagram(ref = O, model = E, normalize = TRUE, ref.sd = TRUE)
 
@@ -179,8 +181,18 @@ for (i in 1:200) {
 legend("topright", legend = c("ens", "PF", "obsUncert"), col = 2:5, pch = 20, cex = 0.7)
 ```
 
+### Question 3
+
 Question 3 [A]: What did you learn about model performance from the
 Taylor diagram?
+
+> The ensemble members differ significantly in sd, but are pretty
+> tightly clustered in correlation.
+> RMSE scales with sd. The aggregate ensemble prediction and the 
+> Particle Filter prediction are very close, but far from center.
+> Observed uncertainty is small.
+
+### Question 4
 
 Question 4 [B]: How do our simple models compare to the ensemble of
 ecosystem models in Figure 7 of Schwalm et al 2010 "A model-data
