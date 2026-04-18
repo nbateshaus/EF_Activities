@@ -385,11 +385,26 @@ partialPlot(rfe, x[smp, ], "PAR")
 partialPlot(rfe, x[smp, ], "temp")
 ```
 
+### Question 7
+
 Question 7 [A]: Overall, which driver is most important in explaining
 model error? What conditions are most associated with model success?
 With model failure? Where do these results reinforce conclusions we
 reached earlier and where do they shine light on new patterns you may
 have missed earlier?
+
+> For the decision tree, the top node in both cases is temperature, and
+> most splits are based on temperature. For the random forest, splitting
+> on temperature also yields greater subtree purity, so here again
+> temperature is more important.
+>
+> Low temperature and low sunlight are most correlated with success ...
+> so, the model is best at night and in winter when NEE is at minimum.
+> The model is worst when it's bright and hot, which limits its utility.
+>
+> These restults reinforce that the model is missing an important driver
+> in June through August, when it is bright and hot. This driver sends
+> observed NEE down, whereas without it the model predicts high NEE.
 
 ## Functional Responses
 
