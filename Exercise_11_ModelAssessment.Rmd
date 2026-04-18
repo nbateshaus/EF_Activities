@@ -448,8 +448,60 @@ lines(xmid, OCI[, 2], col = "lightgrey", lwd = 4)
 legend("topleft", legend = c("Model", "Data"), lwd = 10, col = c(col2, col1), lty = 1, cex = 1.7)
 ```
 
+### Question 8
+
 Question 8 [A]: Evaluate the model's ability to capture functional
 responses to both Temperature and PAR.
+
+> Looking at the point plot, observed NEE is a U-shaped curve
+> with respect to temperature, whereas predicted NEE has a much
+> higher, more constant envelope. This indicates that the model
+> fails to capture the functional response to rising temperature.
+>
+> This is reflected clearly in the binned chart, where the model
+> shows a positive bias on NEP, but around 10C the model and
+> observations sharply diverge, with the model predicting increased
+> NEP as temperature goes up, and observation showing reduced NEP
+> as temperature goes up.
+
+
+```{r}
+plot(inputs$PAR[qaqc], O, pch = ".", ylab = "NEE")
+points(inputs$PAR[qaqc], E, pch = ".", col = 2)
+
+PAR = inputs$PAR[qaqc]
+xd = seq(min(PAR),max(PAR),length=nbin)
+xmid <- xd[-length(xd)] + diff(xd)
+bin <- cut(PAR, xd)
+Obar <- tapply(O, bin, mean, na.rm = TRUE)
+Ose <- tapply(O, bin, std.error, na.rm = TRUE)
+Ebar <- tapply(E, bin, mean, na.rm = TRUE)
+Ese <- tapply(E, bin, std.error, na.rm = TRUE)
+OCI <- -cbind(Obar - 1.96 * Ose, Obar, Obar + 1.96 * Ose)
+ECI <- -cbind(Ebar - 1.96 * Ese, Ebar, Ebar + 1.96 * Ese)
+rng <- range(rbind(OCI, ECI))
+
+col2 <- ecoforecastR::col.alpha("darkgrey", 0.9)
+col1 <- ecoforecastR::col.alpha("lightgrey", 0.6)
+
+plot(xmid, Obar, ylim = rng, type = "n", xlab = "PAR", ylab = "NEP (umol/m2/s)", cex.lab = 1.3)
+ecoforecastR::ciEnvelope(xmid, ECI[, 1], ECI[, 3], col = col2)
+lines(xmid, ECI[, 2], col = "black", lwd = 4)
+ecoforecastR::ciEnvelope(xmid, OCI[, 1], OCI[, 3], col = col1)
+lines(xmid, OCI[, 2], col = "lightgrey", lwd = 4)
+
+legend("topleft", legend = c("Model", "Data"), lwd = 10, col = c(col2, col1), lty = 1, cex = 1.7)
+```
+
+> In the point cloud, the range of observed NEE increases with PAR
+> up to about 1000, but is evenly spread throughout its range for
+> all PAR. The model shows a tightly constrained increase in NEE
+> with increasing PAR. This shows that the model is not capturing
+> an important functional response to PAR.
+>
+> The binned figure shows similar, with modeled NEP increasing almost
+> linearly with PAR, whereas the observed response to increasing
+> PAR levels out at about 1000, until 2200.
 
 ## Overall
 
@@ -534,6 +586,8 @@ lines(L4$DoY, -NEE.clim, col = 4, lwd = 2, lty = 2)
 legend("topright", legend = c("Obs", "clim"), lty = 1:2, col = c(1, 4), lwd = 2)
 ```
 
+### Question 9
+
 Question 9 [B]: How does the process model perform relative to the
 average flux data? Which statistics showed the largest differences
 between the model and climatology?
@@ -563,6 +617,9 @@ lines(tod, NEE.clim.diurnal, col = 4, lwd = 3)
 lines(tod, NEE.obs.diurnal, lwd = 3)
 legend("bottomright", legend = c("obs", "ens", "PF", "clim"), col = 1:4, pch = 20, cex = 0.75)
 ```
+
+
+### Question 10
 
 Question 10 [C]: What time of day has the largest uncertainty? What does
 this suggest about what parameter(s) needs to be modified in the model,
