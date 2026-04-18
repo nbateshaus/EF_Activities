@@ -287,10 +287,46 @@ plot(time.of.day, crps.diurnal)
 plot(O, crps)
 ```
 
+### Question 6
+
 Question 6 [A]: Compare the CRPS for the ensemble and PF models. How do
 they perform overall (mean) in terms of their ability to produce the
 correct seasonal and diurnal cycles? Explain the pattern of the
 relationship between NEE and CRPS.
+
+```{r}
+crps.ens <- scoringRules::crps_sample(y = O, dat = NEE.ens)
+mean(crps.ens)
+plot(time, crps.ens)
+hist(crps.ens)
+crps.diurnal.ens <- tapply(crps.ens, L4$Hour, mean)
+plot(time.of.day, crps.diurnal.ens)
+plot(O, crps)
+```
+
+> The means are very close (7.46 vs 7.45), but this really doesn't
+> tell us much.
+>
+> The histograms of CRPS scores look very similar between the two,
+> with the vast bulk of scores in the 0-5 range, with a tail up to 50.
+> This tells us that the distribution or CRPS scores is very similar
+> between the two, but not whether those scores are correlated.
+>
+> Seasonally, for both the ensemble and the particle filter, CRPS is
+> lower outside the growing season and higher in the growing season.
+>
+> With respect to time of day, crps increases dramatically during
+> daylight hours. For both models there's a curious dip in CRPS
+> around sunrise and sunset; an interesting thing to look into.
+>
+> For both models, CRPS rises very quickly as observed NEE drops < 0.
+> Going back the plot of NEE for question 2, there's a long period
+> between June - Oct during which observed NEE declines significantly
+> (gets closer to 0), whereas both models still predict that NEE
+> will be high (away from 0).
+> 
+> This indicates that the models are missing an important driver of
+> NEE that causes it to drop off during this period.
 
 ## Mining the Residuals
 
