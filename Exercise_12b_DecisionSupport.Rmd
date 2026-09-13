@@ -1,7 +1,13 @@
 ---
-title: "Activity 12: Consequence Table"
-output: html_document
+title: 'Activity 12: Consequence Table'
+output:
+  pdf_document: default
+  html_document: default
 ---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+library(tidyverse)
+```
 
 Individual Exercise: Where to live?
 -------------------------------------
@@ -20,8 +26,237 @@ The consequence table is generated through the following steps:
 ![Decision Support Flowchart](images/DecisionSupportFlowchart.50.png)
 
 1. **Determine Objectives:** Objectives consist of a few words that summarize something that matters to the stakeholders, in the specific context of the decision being discussed, and the desired direction of change (e.g. minimize cost). In a group decision, different stakeholders need not agree on how much they value a specific objective, but inclusion does validate that a specific objective has value. For this exercise you consider at least 4 objectives.
+
+> 1. Price - we had a certain amount of money, which set a ceiling on down payment and monthly expenses.
+> 2. Commute - measured in door-to-door commute time
+> 3. Community - Quality of schools, character of town, access to amenities, etc.
+> 4. House - Number of bedrooms, number of bathrooms, up-to-date vs. fixer-upper, etc.
+
 2. **Select Performance Measures:** Performance measures should quantify objectives in units that are appropriate for that objective and should not be monetized unless it is normal to think about the objective in monetary terms. Performance measures _define_ the metrics being used, they don't _calculate_ them.
-3. **Generate Alternatives and Scenarios:** Construct 4 - 12 alternatives that creative explore the space of possible choices. Alternatives need to be complete, comparable, and internally consistent solutions. This means that all alternatives address the same problem, evaluated over the same time, to the same level of detail, and with the same assumptions and performance metrics. 
+
+> 1. Price - Assume 10% down payment; compute monthly costs with 5% 30-year fixed mortgage
+> 2. Commute - door-to-door commute time, assuming bicycle + public transit
+> 3. Community - # of issues / missing desirable things
+> 4. House - # of issues / missing desirable things
+
+3. **Generate Alternatives and Scenarios:** Construct 4 - 12 alternatives that creative explore the space of possible choices. Alternatives need to be complete, comparable, and internally consistent solutions. This means that all alternatives address the same problem, evaluated over the same time, to the same level of detail, and with the same assumptions and performance metrics.
+
+> At the time we were house hunting, I was working at 101 Main St. in Cambridge,
+> which is at the Kendall / MIT station on the Red Line. We had two Very
+> Loud Children, with a third on the way, so not sharing walls with our
+> neighbors and getting more space was the motivation to move.
+> We had a soft budget ceiling based on the
+> windfall from my company being acquired; I've translated that to
+> $750k in today dollars. With a $75k down payment, 30-year fixed mortgage
+> at 5%, and $5k/year in taxes, the monthly financial burden would be $4200.
+>
+> Commute-wise, I am not a good person when I drive, so we looked at
+> non-driving door-to-door commute time, trying to keep it under an
+> hour each way.
+>
+> Community wise, Lissie wanted an excellent school system for the kids,
+> I wanted woods, and we both wanted the kids to be able to play outside,
+> preferably with a playground in walking distance.
+
+> In terms of Houses, we knew our budget didn't give us a lot of options.
+> Three bedrooms was the minimum; 4 preferred. Our Somerville condo was
+> 1300sf; we needed something bigger, around 2000sf. At least 2 bath was a
+> requirement.  We both wanted off-street parking (we lived in Somerville
+> with on-street parking at the time), and to live away from main roads
+> (noise). A plus would be not only not sharing walls with neighbors, but
+> having enough distance to have some privacy from our neighbors. Having a
+> yard the kids could play in was highly desireable.
+>
+> We knew we couldn't get everything, so we largely tracked the number
+> of undesireable things at each property.
+>
+> For scenarios, we knew the biggest trade-off was going to be price
+> vs. commute. One scenario was finding a single-family home within
+> biking distance of Kendall Square. Further out than Somerville we
+> looked at door-to-door commute time vs. price. Close in (Cambridge,
+> Belmont, Arlington, Watertown) there was nothing in our price range.
+> We followed the Fitchburg commuter rail line further out because
+> it intersects with the Red Line at Porter Square. Commuter rail to
+> North Station was a non-starter because the three changes (Commuter,
+> Green Line, Red Line) ate up all the commute time. Commuter rail to
+> South Station was possible, but almost half the commute was on the
+> Red Line leaving not much time for Commuter Rail.
+>
+> On the Fitchburg line, Waltham had some possiblities; Lincoln and
+> Concord priced us out. We looked at things that pushed the ceiling
+> on both price and commute time, because our other criteria were
+> rigid.
+>
+> This left us with the possibility of single-family homes in:
+>
+> - Somerville
+> - Waltham
+> - West Concord
+> - Acton
+> - Littleton
+> - Ayer
+
 4. **Forecast Consequences:** Forecasting consequences robustly has been the focus of this entire course, so generating precise, data-driven forecasts is beyond the scope of this activity. Here you will rely mostly online resources (home/apartment search sites, Google map distances or times to important locations/amenities, etc.) to populate your table. In other contexts you may reply on elicitation (Box 5.5.1) and back-of-the-envelope [Fermi estimation](https://en.wikipedia.org/wiki/Fermi_problem) to generate first-pass estimates. Such estimates are valuable, even in real decision making, for sorting out where more detailed, quantitative forecasting is necessary.
+
+> I filled in possibilites for the above listed cities:
+>
+> - Zillow to filter to currently available listings in each community,
+>   restricted to single-family homes with 3+ bed and 2+ bath under $1M
+>
+> - Zillow for price and tax information, off-street parking, yard,
+>   proximity to neighbors, square footage.
+>
+> - MortgageCalculator.org to determine the monthly cost of a 30-year
+>   5% fixed mortgage with $75k down payment and most recent tax rate.
+>
+> - Local expert elicitation for school quality (I asked my spouse).
+> 
+> - Google Maps for local amenities, including trees, playgrounds,
+>   proximity to main roads, 
+>
+> - Google Maps to determine duration of bike ride from home to local
+>   commuter station and length of walk from Red Line to 101 Main St.
+>
+> - MBTA.com to determine duration of commuter rail and red line trips.
+>
+> In the course of examining the properties on Google Maps, I added
+> an additional flag for proximity to a superfund site.
+
+> The properties:
+
+> 1. Somerville, 9 Cross St
+>
+>   - Price: 885, 7 tax = 5100 / mo
+>   - Commute: 00:20 (bicycle)
+>   - Community: +playground; +walkable; -noise; -school; -trees
+>   - House: -3bed; +2bath; +1700sf; +yard; -parking; -privacy;
+
+> 2. Waltham, 123 Pine Hill Cir
+>
+>   - Price: 925, 6 tax = 5200/mo
+>   - Commute: 00:20 bicycle + 00:15 train + 00:05 wait + 00:15 red line + 00:05 walk = 01:00
+>   - Community: +playground; +walkable; -noise; -school; -trees
+>   - House: +4bed, +2bath, +2250sf; -yard; +parking; -privacy
+
+> 3. Acton, 389 Arlington St.
+>
+>   - Price: 775, 12 tax = 5000 / mo
+>   - Commute: 00:10 bicycle + 00:40 train + 00:05 wait + 00:15 red line + 00:05 walk = 01:15
+>   - Community: -playground; - walkable; + noise; + school; +trees
+>   - House: +4 bed; +2 bath; +2300sf; +yard; +parking; +privacy
+
+> 4. West Concord, 22 Hayward Mill Cir
+>
+>   - Price: 925, 10 tax = 5500/mo
+>   - Commute: 00:10 bicycle + 00:35 train + 00:05 wait + 00:15 red line + 00:05 walk = 01:10
+>   - Community: +dead end; -walkable; +noise; +school, +trees; -superfund
+>   - House: +4 bed; +2 bath; +2000sf; +yard; +privacy
+
+> 5. Littleton, 5 Kimball St
+>
+>   - Price: 650, 8 tax = 4k / mo
+>   - Commute: 00:10 bicycle + 00:50 train + 00:05 wait + 00:15 red line + 00:05 walk = 01:25
+>   - Community: -playground; -walkable; -noise; +school; +trees
+>   - House: +4bed +2bath +2000sf +yard +privacy
+
+> 6. Ayer, 23 Nashua St
+>
+>   - Price: 699 + 6 = 4/mo
+>   - Commute: 00:05 walk + 1:00 train + 00:05 wait + 00:15 red line + 00:05 walk = 01:30
+>   - Community: +playground; +walkable; +noise; -school; +trees
+>   - House: +4bed; +2bath; +2000sf; +yard; -privacy
+
+
+```{r, echo = FALSE}
+cons_tbl <- tibble::tribble(
+  ~addr, ~price, ~commute, ~community, ~house,
+  "Somerville, 9 Cross St", 5.1, "0:20", 3, 3,
+  "Waltham, 123 Pine Hill Cir", 5.2, "1:00", 2, 3,
+  "West Concord, 22 Yaward Mill Cir", 5.5, "1:10", 2, 0,
+  "Acton, 389 Arlington St", 5, "1:15", 2, 0,
+  "Littleton, 5 Kimball St", 4, "1:25", 3, 0,
+  "Ayer, 23 Nashua St", 4, "1:30", 1, 1
+) |>
+  mutate(commute = lubridate::hm(commute))
+cons_tbl |> knitr::kable()
+```
+
 5. **Evaluate Trade-offs:** Iteratively improve the set of alternatives by (1) deleting bad alternatives and insensitive performance measures and (2) refining your understanding of the key trade-offs. The goal isn't to provide a single recommendation, but to eliminate dominated alternatives and clarify the fundamental trade-offs that policy makers face.
+
+> Is anything dominated?
+
+> Dominated is "dominated alternatives are those that lose on
+> all measures when compared to another alternative".
+
+```{r, echo = FALSE}
+dominated <- function(row) {
+  doms <- cons_tbl |> filter(
+    addr != row[["addr"]], # Don't compare to self
+    price <= row[["price"]],
+    commute <= row[["commute"]],
+    community <= row[["community"]],
+    house <= row[["house"]]
+  ) |>
+    pull(addr)
+  if (length(doms) == 0) {
+    return("none")
+  } else {
+    return(paste(doms))
+  }
+}
+cons_tbl |>
+  mutate(
+    dominated_by = cons_tbl |> apply(1, dominated) |> unlist()
+) |>
+  knitr::kable()
+```
+
+> So nothing is _strictly_ dominated. However:
+>
+> - Waltham is more expensive, triple the commute, and as bad a house
+>   as Somerville, and community differs by one point, so it is
+>   practically dominated and can be removed.
+>
+> - West Concord is significantly more expensive than Acton, with
+>   the same community and house scores, and the commute is only an
+>   additional 5 minutes, so it can likewise be eliminated.
+>
+> This leaves us with:
+
+```{r, echo = FALSE}
+cons_tbl |>
+  filter(!grepl("(Waltham|Concord)", x = addr)) |>
+  knitr::kable()
+```
+
+> Are any performance measures insensitive?
+
+> No, for every measure, there is at least one case that is better on
+> that measure while being worse on another.
+
+> Now it seems like a real choise:
+>
+> - Somerville: really short commute, but expensive and with many flags
+>
+> - Acton: Expensive and nice, but long commute
+>
+> - Littleton: Like Acton, but trade lower price for longer commute and
+>   one more community flag
+>
+> - Ayer: Like Acton, but trade lower price and nicer community for longer
+>   commute and worse house
+
+# Results
+
+> This is pretty close to the experience we had in house shopping:
+>
+> - We ended up _not_ buying the home in Somerville, in part because it would
+>   also need a lot of work, adding to the effective monthly cost.
+> - We decided that the cost trade for Acton didn't warrant the improvements.
+> - The Littleton choice we had was different than the choice available now,
+>   in that it had ready access to an outdoor playspace but only 3 bedrooms.
+>   It didn't make sense to go further out to Ayer for one point improvement
+>   in house.
+>
+> I very much enjoy our home in Littleton!
 
